@@ -172,6 +172,15 @@ async function captureShot(site, query, debug = false) {
 
     await page.waitForTimeout(site.settleDelayMs ?? 3500);
 
+    // close floating "search result" style popups so they don't cover the map
+    const closeSels = [...(site.closeSelectors || []), '.esri-popup__button--close', '[aria-label="Close" i]', '[title="Close" i]'];
+    for (const sel of closeSels) {
+      try {
+        const btn = page.locator(sel).first();
+        if (await btn.isVisible({ timeout: 300 })) { await btn.click({ timeout: 2000 }); await page.waitForTimeout(400); }
+      } catch (e) { /* fine */ }
+    }
+
     if (site.zoomOutClicks && site.zoomOutSelector) {
       for (let i = 0; i < site.zoomOutClicks; i++) {
         await page.locator(site.zoomOutSelector).first().click().catch(() => {});
@@ -186,7 +195,7 @@ async function captureShot(site, query, debug = false) {
   }
 }
 
-const SERVER_VERSION = 'v8-zoom'; // bump when editing; check at GET /
+const SERVER_VERSION = 'v9-polish'; // bump when editing; check at GET /
 
 // A single unhandled rejection kills modern Node outright — which shows up in
 // Render as a silent "Instance restarted" with no error output. Log instead.

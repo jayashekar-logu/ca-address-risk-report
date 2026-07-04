@@ -101,6 +101,27 @@ async function dismissSplash(page, site) {
   }
 }
 
+// Some apps collapse the search widget into a magnifying-glass icon; the
+// input only becomes visible after clicking it to expand.
+async function expandSearch(page, site) {
+  const candidates = [
+    ...(site.expandSelectors || []),
+    '.esri-icon-search', '[title="Search" i]', 'button[aria-label*="search" i]',
+    'div[role="button"][title*="search" i]', '.esri-search__submit-button',
+  ];
+  for (const sel of candidates) {
+    try {
+      const el = page.locator(sel).first();
+      if (await el.isVisible({ timeout: 400 })) {
+        await el.click({ timeout: 3000 });
+        await page.waitForTimeout(600);
+        return true;
+      }
+    } catch (e) { /* not present — fine */ }
+  }
+  return false;
+}
+
 async function captureShot(site, query, debug = false) {
   const browser = await getBrowser();
   const page = await browser.newPage({
@@ -115,10 +136,16 @@ async function captureShot(site, query, debug = false) {
     await page.waitForTimeout(1500);       // let any splash modal render
     await dismissSplash(page, site);
 
-    let input = await findSearchInput(page, site.searchSelectors, site.selectorTimeoutMs);
+    let input = await findSearchInput(page, site.searchSelectors, 5000);
     if (!input) {
-      // splash may have appeared late — try dismissing again, then one quick retry
+      // widget may be collapsed behind a search icon — expand and retry
+      await expandSearch(page, site);
+      input = await findSearchInput(page, site.searchSelectors, site.selectorTimeoutMs);
+    }
+    if (!input) {
+      // splash may have appeared late — dismiss again, expand again, one last try
       await dismissSplash(page, site);
+      await expandSearch(page, site);
       input = await findSearchInput(page, site.searchSelectors, 4000);
     }
     if (!input) {
@@ -158,7 +185,7 @@ async function captureShot(site, query, debug = false) {
   }
 }
 
-const SERVER_VERSION = 'v6-terms'; // bump when editing; check at GET /
+const SERVER_VERSION = 'v7-expandsearch'; // bump when editing; check at GET /
 
 // A single unhandled rejection kills modern Node outright — which shows up in
 // Render as a silent "Instance restarted" with no error output. Log instead.

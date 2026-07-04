@@ -40,19 +40,30 @@ function cacheFile(factorId, query) {
   return path.join(CACHE_DIR, `${factorId}_${hash}.png`);
 }
 
+async function findSearchInput(page, selectors, timeoutPerSelectorMs = 8000) {
+  for (const sel of selectors) {
+    try {
+      const loc = page.locator(sel).first();
+      await loc.waitFor({ state: 'visible', timeout: timeoutPerSelectorMs });
+      return loc;
+    } catch (e) { /* try next candidate */ }
+  }
+  return null;
+}
+
 async function captureShot(site, query) {
   const browser = await getBrowser();
   const page = await browser.newPage({
     viewport: { width: site.viewport?.w || 1400, height: site.viewport?.h || 900 },
   });
   try {
-    await page.goto(site.url, { waitUntil: 'networkidle', timeout: 45000 });
+    // 'domcontentloaded' instead of 'networkidle': map apps keep polling tiles,
+    // so 'networkidle' can resolve before widgets finish mounting (or time out
+    // waiting for network that never truly goes idle). We wait for the actual
+    // search input to appear instead, which is the real readiness signal.
+    await page.goto(site.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
 
-    let input = null;
-    for (const sel of site.searchSelectors) {
-      const loc = page.locator(sel).first();
-      if (await loc.count().catch(() => 0)) { input = loc; break; }
-    }
+    const input = await findSearchInput(page, site.searchSelectors, site.selectorTimeoutMs);
     if (!input) throw new Error(`search input not found (tried: ${site.searchSelectors.join(', ')})`);
 
     await input.click({ timeout: 10000 });

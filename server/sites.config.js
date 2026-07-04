@@ -31,12 +31,14 @@
  */
 
 export const SITES = {
-  6: { // Soil Liquefaction Zones (CGS EQ Zapp)
+  6: { // Soil Liquefaction Zones (CGS EQ Zapp) — confirmed via devtools 7/4/26:
+       // <input class="esri-input esri-search__input" placeholder="Find address or place" ...>
     url: 'https://maps.conservation.ca.gov/cgs/informationwarehouse/eqzapp/',
-    searchSelectors: ['input[placeholder*="address" i]', '.esri-search__input', 'input[type="search"]'],
+    searchSelectors: ['.esri-search__input', 'input[placeholder*="address" i]', 'input[type="search"]'],
+    selectorTimeoutMs: 12000,
     submit: 'firstSuggestion',
-    suggestionSelector: '.esri-search__suggestions-list li, .esri-menu__list-item',
-    suggestDelayMs: 900, settleDelayMs: 3500,
+    suggestionSelector: '.esri-search__suggestions-list li, [role="option"]',
+    suggestDelayMs: 1000, settleDelayMs: 3500,
     viewport: { w: 1400, h: 900 }, clip: null,
   },
   9: { // Dams & Inundation

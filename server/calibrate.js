@@ -29,12 +29,15 @@ if (!site || !query) {
   const browser = await chromium.launch({ headless: false, slowMo: 150 });
   const page = await browser.newPage({ viewport: { width: site.viewport?.w || 1400, height: site.viewport?.h || 900 } });
   console.log(`Opening ${site.url} ...`);
-  await page.goto(site.url, { waitUntil: 'networkidle', timeout: 45000 });
+  await page.goto(site.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
 
   let input = null, usedSel = null;
   for (const sel of site.searchSelectors) {
-    const loc = page.locator(sel).first();
-    if (await loc.count().catch(() => 0)) { input = loc; usedSel = sel; break; }
+    try {
+      const loc = page.locator(sel).first();
+      await loc.waitFor({ state: 'visible', timeout: site.selectorTimeoutMs || 8000 });
+      input = loc; usedSel = sel; break;
+    } catch (e) { /* try next candidate */ }
   }
   if (!input) {
     console.log('❌ No selector matched. Open devtools in the window, inspect the search box, and add its selector to sites.config.js searchSelectors.');

@@ -58,6 +58,34 @@
       </div>
     </section>
 
+    <!-- OVERALL RISK SCORE -->
+    <section class="overall" id="overallSection">
+      <div class="sec-head">
+        <h2>Overall risk score</h2>
+        <span class="hint">Composite of all 36 factors below &middot; refined by live agency lookups</span>
+      </div>
+      <div class="panel overall-panel">
+        <div class="overall-grid">
+          <div class="gaugebox">
+            <svg id="gauge" viewBox="0 0 220 130" aria-label="overall risk gauge"></svg>
+            <div class="gauge-num" id="gaugeNum">&mdash;</div>
+            <div class="gauge-band" id="gaugeBand"></div>
+          </div>
+          <div class="dimside">
+            <div class="dimtabs" id="dimTabs"></div>
+            <div class="drivers">
+              <div class="drivers-title" id="driversTitle"></div>
+              <div id="driversList"></div>
+            </div>
+          </div>
+        </div>
+        <details class="method" id="methodBox">
+          <summary>How this score is calculated</summary>
+          <div id="methodBody"></div>
+        </details>
+      </div>
+    </section>
+
     <!-- AT-A-GLANCE SUMMARY (like report pages 2–8) -->
     <section class="atglance">
       <div class="sec-head">
@@ -70,16 +98,6 @@
         <table class="sumtable" id="summaryTable"></table>
       </div>
     </section>
-
-    <!-- FULL DETAILS (maps + sources) -->
-    <div class="toolbar">
-      <div>
-        <h2>Full details — maps &amp; sources</h2>
-        <span class="hint" id="counts"></span>
-      </div>
-    </div>
-    <div class="filters" id="filters"></div>
-    <div class="grid" id="cards"></div>
 
     <footer class="foot" id="foot"></footer>
   </div>

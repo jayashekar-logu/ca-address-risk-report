@@ -185,3 +185,29 @@ table.sumtable tbody tr:hover{background:#f7faff}
   .summary-grid{grid-template-columns:1.05fr 1fr}
   #map{height:340px}
 }
+
+/* ---------- OVERALL RISK SCORE ---------- */
+.overall{margin-top:30px}
+.overall-panel{padding:20px}
+.overall-grid{display:grid;grid-template-columns:1fr;gap:20px}
+@media(min-width:760px){.overall-grid{grid-template-columns:250px 1fr}}
+.gaugebox{text-align:center;padding-top:6px}
+.gaugebox svg{width:100%;max-width:230px}
+.gauge-num{font-size:26px;font-weight:800;margin-top:-38px}
+.gauge-band{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin-top:2px}
+.dimtabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.dimtab{background:#f8fafd;border:1px solid var(--line);border-radius:11px;padding:8px 14px;cursor:pointer;font-family:inherit;text-align:left;transition:all .12s}
+.dimtab:hover{border-color:#c3cee0}
+.dimtab.active{border-color:var(--navy);background:#fff;box-shadow:var(--shadow)}
+.dimtab .t{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700}
+.dimtab .s{display:block;font-size:14px;font-weight:800;margin-top:2px}
+.drivers-title{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:8px}
+.driver{display:flex;align-items:baseline;gap:9px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;cursor:pointer;background:#fff;transition:background .12s}
+.driver:hover{background:#f2f7ff}
+.driver .d-name{font-weight:700;font-size:12.5px;white-space:nowrap}
+.driver .d-why{color:#475468;font-size:11.5px}
+.method{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+.method summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--accent)}
+.method p{font-size:12.5px;color:#475468;line-height:1.6}
+tr.flash{animation:rowflash 1.6s ease-out}
+@keyframes rowflash{0%{background:#fff3c9}100%{background:transparent}}

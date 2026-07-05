@@ -259,3 +259,4 @@ tr.flash{animation:rowflash 1.6s ease-out}
 .gc-right{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
 #glanceSearch{padding:8px 13px;border:1px solid #d4dbe6;border-radius:9px;font-family:inherit;font-size:13px;min-width:230px;color:var(--ink)}
 #glanceSearch:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,109,246,.13)}
+.buildtag{opacity:.55}

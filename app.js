@@ -607,7 +607,7 @@ async function analyze(){
   const fmt = d => `${d.band} · ${d.score.toFixed(1)}/10`;
   const d = { health: fmt(R.dims.health), prop: fmt(R.dims.property), ins: fmt(R.dims.insurance) }; // used by the PDF cover
   $('#foot').innerHTML=`Generated ${new Date().toLocaleDateString()} · Geocoding © OpenStreetMap/Nominatim · Demographics: U.S. Census ACS · Flood: FEMA NFHL · Basemaps © Esri. `
-    +`Informational screening only — not a substitute for a professional inspection, geotechnical study, or insurance underwriting.`;
+    +`Informational screening only — not a substitute for a professional inspection, geotechnical study, or insurance underwriting. Build ${(window.APP_CONFIG||{}).BUILD||'?'} `;
 
   STATE._dims=d; STATE._census=census;
   $('#pdf').disabled=false;
@@ -817,3 +817,11 @@ $('#pdf').addEventListener('click', ()=>{ makePDF().catch(e=>setStatus('PDF erro
 document.querySelectorAll('.example').forEach(b=>b.addEventListener('click',()=>{
   $('#addr').value=b.dataset.a; $('#suggest').classList.add('hidden'); analyze();
 }));
+
+/* build stamp: makes the deployed version visible on the page itself */
+(function(){
+  const b=(window.APP_CONFIG||{}).BUILD||'unknown';
+  const t=document.getElementById('buildTag');
+  if(t) t.textContent=' · build '+b;
+  console.log('CA Risk Report build:', b);
+})();

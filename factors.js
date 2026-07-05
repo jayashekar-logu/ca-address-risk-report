@@ -259,7 +259,71 @@ const FACTORS = [
   detail:"Cemetery proximity (a buyer-preference factor for some).",
   impact:{health:{level:'NA',why:"No health effect."},
           property:{level:'Low',why:"A buyer-preference factor for some."},
+          insurance:{level:'NA',why:"Not an insurance factor."}}},,
+
+ /* ---------- Livability & lifestyle (live-scored via OpenStreetMap/Census) ---------- */
+ {n:37, cat:"Livability", name:"Colleges & Universities",
+  map:"https://www.google.com/maps/search/?api=1&query=colleges%20universities%20near%20{ADDR}", recenter:'addr', live:'osm', basemap:'street',
+  detail:"Higher-education campuses near the address (checked live via OpenStreetMap).",
+  impact:{health:{level:'NA',why:"No health effect."},
+          property:{level:'Low',why:"Campus proximity supports rental demand and values."},
           insurance:{level:'NA',why:"Not an insurance factor."}}},
+
+ {n:38, cat:"Livability", name:"Restaurants & Retail",
+  map:"https://www.google.com/maps/search/?api=1&query=restaurants%20near%20{ADDR}", recenter:'addr', live:'osm', basemap:'street',
+  detail:"Dining and shopping density within about a mile (live OpenStreetMap count).",
+  impact:{health:{level:'NA',why:"No direct health effect."},
+          property:{level:'Low',why:"Amenity-rich areas hold value better."},
+          insurance:{level:'NA',why:"Not an insurance factor."}}},
+
+ {n:39, cat:"Livability", name:"Parks & Recreation",
+  map:"https://www.google.com/maps/search/?api=1&query=parks%20near%20{ADDR}", recenter:'addr', live:'osm', basemap:'street',
+  detail:"Parks, playgrounds and green space within about a mile (live OpenStreetMap count).",
+  impact:{health:{level:'Low',why:"Green-space access supports physical & mental health."},
+          property:{level:'Low',why:"Park proximity is a value positive."},
+          insurance:{level:'NA',why:"Not an insurance factor."}}},
+
+ {n:40, cat:"Livability", name:"Walkability & Transit",
+  map:"https://www.google.com/maps/search/?api=1&query=transit%20near%20{ADDR}", recenter:'addr', live:'osm', basemap:'street',
+  detail:"Transit stops and everyday destinations within walking range (live OpenStreetMap count).",
+  impact:{health:{level:'Low',why:"Walkable areas encourage active lifestyles."},
+          property:{level:'Low',why:"Walkability commands a price premium."},
+          insurance:{level:'NA',why:"Not an insurance factor."}}},
+
+ {n:41, cat:"Livability", name:"Commute & Accessibility",
+  map:"https://www.google.com/maps/search/?api=1&query=freeway%20entrance%20near%20{ADDR}", recenter:'addr', live:'osm', basemap:'street',
+  detail:"Freeway access and rail stations within reach (live OpenStreetMap check).",
+  impact:{health:{level:'NA',why:"No direct health effect."},
+          property:{level:'Low',why:"Poor access can weigh on resale."},
+          insurance:{level:'NA',why:"Not an insurance factor."}}},
+
+ {n:42, cat:"Livability", name:"Healthcare Access",
+  map:"https://www.google.com/maps/search/?api=1&query=hospital%20clinic%20near%20{ADDR}", recenter:'addr', live:'osm', basemap:'street',
+  detail:"Hospitals, clinics and pharmacies near the address (live OpenStreetMap count).",
+  impact:{health:{level:'Moderate',why:"Distance to care matters in emergencies."},
+          property:{level:'Low',why:"Healthcare access is a modest value factor."},
+          insurance:{level:'NA',why:"Not a standard property-insurance factor."}}},
+
+ {n:43, cat:"Livability", name:"Property Value (ACS)",
+  map:"https://www.zillow.com/homes/{ZIP}_rb/", recenter:'addr', live:'census', basemap:'street',
+  detail:"ZIP median home value from the U.S. Census ACS; open Zillow for market trends.",
+  impact:{health:{level:'NA',why:"Not a health factor."},
+          property:{level:'No',why:"Context metric for the local market."},
+          insurance:{level:'Low',why:"Higher values raise replacement-cost premiums."}}},
+
+ {n:44, cat:"Livability", name:"Community & Lifestyle Fit",
+  map:"https://www.google.com/maps/search/?api=1&query=library%20community%20center%20near%20{ADDR}", recenter:'addr', live:'osm', basemap:'street',
+  detail:"Libraries, community centers and gathering places nearby (live OpenStreetMap count) — an indicative community-infrastructure signal.",
+  impact:{health:{level:'Low',why:"Social infrastructure supports wellbeing."},
+          property:{level:'Low',why:"Community amenities support desirability."},
+          insurance:{level:'NA',why:"Not an insurance factor."}}},
+
+ {n:45, cat:"Livability", name:"Future Development Activity",
+  map:"https://www.google.com/maps/search/?api=1&query=construction%20near%20{ADDR}", recenter:'addr', live:'osm', basemap:'street',
+  detail:"Mapped construction activity near the address (live OpenStreetMap proxy) — growth signal, but also change/noise; check the city planning page for entitled projects.",
+  impact:{health:{level:'NA',why:"No direct health effect."},
+          property:{level:'Low',why:"Development can lift or pressure values depending on type."},
+          insurance:{level:'NA',why:"Not an insurance factor."}}}
 ];
 
 if (typeof module !== 'undefined') module.exports = { FACTORS };

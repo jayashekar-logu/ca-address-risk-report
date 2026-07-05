@@ -109,6 +109,138 @@ async function femaFloodZone(lat, lon){
   }catch(e){ return null; }
 }
 
+/* ---------- Live hazard point-queries (CGS / CAL FIRE) ---------- */
+async function agsQuery(url, lat, lon, extra=''){
+  const q=`${url}/query?geometry=${lon},${lat}&geometryType=esriGeometryPoint&inSR=4326`
+        +`&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=false&f=json${extra}`;
+  const res=await fetch(q); if(!res.ok) return null;
+  const j=await res.json(); if(j.error) return null;
+  return j.features||[];
+}
+const IMP=(level,why)=>({level,why});
+
+async function cgsLiquefaction(lat,lon){
+  try{ const f=await agsQuery('https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Liquefaction_Zones/MapServer/0',lat,lon);
+    if(f===null) return null;
+    return f.length
+      ? {label:'High Risk',score:7,desc:'Inside a CGS liquefaction Zone of Required Investigation at this point.',
+         impacts:{property:IMP('High','Mapped liquefaction zone — site investigation required for development.'),insurance:IMP('Moderate','Adds to earthquake / structural coverage cost.')}}
+      : {label:'Low Risk',score:1,desc:'Outside mapped CGS liquefaction zones at this point.',
+         impacts:{property:IMP('Low','Not in a mapped liquefaction zone.'),insurance:IMP('Low','No liquefaction-zone surcharge context.')}};
+  }catch(e){ return null; }
+}
+async function cgsLandslide(lat,lon){
+  try{ const f=await agsQuery('https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Landslide_Zones/MapServer/0',lat,lon);
+    if(f===null) return null;
+    return f.length
+      ? {label:'High Risk',score:7,desc:'Inside a CGS earthquake-induced landslide zone at this point.',
+         impacts:{property:IMP('High','Mapped landslide zone — slope-stability investigation applies.')}}
+      : {label:'Low Risk',score:1,desc:'Outside mapped CGS landslide zones at this point.',
+         impacts:{property:IMP('Low','Not in a mapped landslide zone.')}};
+  }catch(e){ return null; }
+}
+async function cgsFault(lat,lon){
+  try{ const f=await agsQuery('https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Fault_Zones/FeatureServer/0',lat,lon,'&distance=500&units=esriSRUnit_Meter');
+    if(f===null) return null;
+    return f.length
+      ? {label:'High Risk',score:8,desc:'Within ~500 m of an Alquist-Priolo earthquake fault zone.',
+         impacts:{property:IMP('High','Fault-zone proximity — disclosure required, surface-rupture exposure.'),insurance:IMP('High','Earthquake coverage priced for near-fault exposure.')}}
+      : {label:'Low Risk',score:2,desc:'No Alquist-Priolo fault zone within ~500 m of this point.',
+         impacts:{property:IMP('Low','No mapped fault zone in the immediate vicinity.'),insurance:IMP('Moderate','Regional earthquake exposure still applies (statewide).')}};
+  }catch(e){ return null; }
+}
+async function calfireFHSZ(lat,lon){
+  try{ const f=await agsQuery('https://services.gis.ca.gov/arcgis/rest/services/Environment/Fire_Severity_Zones/MapServer/0',lat,lon);
+    if(f===null) return null;
+    const txt=f.length?JSON.stringify(f[0].attributes).toLowerCase():'';
+    if(!f.length) return {label:'Low Risk',score:2,desc:'Not in a designated Fire Hazard Severity Zone at this point.',
+      impacts:{insurance:IMP('Low','No FHSZ designation here.'),property:IMP('Low','Outside designated hazard zones.')}};
+    if(txt.includes('very high')) return {label:'High Risk',score:9,desc:'CAL FIRE Very High Fire Hazard Severity Zone at this point.',
+      impacts:{insurance:IMP('High','VHFHSZ drives costly or non-renewed coverage.'),property:IMP('Moderate','Wildfire-loss exposure weighs on value.'),health:IMP('Low','Smoke episodes affect respiratory health.')}};
+    if(txt.includes('high')) return {label:'High Risk',score:8,desc:'CAL FIRE High Fire Hazard Severity Zone at this point.',
+      impacts:{insurance:IMP('High','High FHSZ raises premiums and renewal risk.'),property:IMP('Moderate','Wildfire exposure weighs on value.')}};
+    if(txt.includes('moderate')) return {label:'Moderate Risk',score:5,desc:'CAL FIRE Moderate Fire Hazard Severity Zone at this point.',
+      impacts:{insurance:IMP('Moderate','Moderate FHSZ affects pricing.')}};
+    return {label:'Low Risk',score:3,desc:'Fire Hazard Severity Zone data returned an unclassified designation here.'};
+  }catch(e){ return null; }
+}
+
+/* ---------- Live livability lookups (OpenStreetMap Overpass) ---------- */
+async function overpassAmenities(lat,lon){
+  const q=`[out:json][timeout:25];(
+    nwr(around:2500,${lat},${lon})[amenity~"^(university|college)$"];
+    nwr(around:1500,${lat},${lon})[amenity~"^(restaurant|cafe|fast_food)$"];
+    nwr(around:1500,${lat},${lon})[shop];
+    nwr(around:1500,${lat},${lon})[leisure~"^(park|playground|pitch|garden)$"];
+    nwr(around:2000,${lat},${lon})[amenity~"^(hospital|clinic|doctors|pharmacy)$"];
+    nwr(around:1200,${lat},${lon})[highway=bus_stop];
+    nwr(around:1200,${lat},${lon})[public_transport=platform];
+    nwr(around:3000,${lat},${lon})[railway=station];
+    nwr(around:4000,${lat},${lon})[highway=motorway_junction];
+    nwr(around:1500,${lat},${lon})[landuse=construction];
+    nwr(around:1500,${lat},${lon})[building=construction];
+    nwr(around:1500,${lat},${lon})[amenity~"^(library|community_centre|place_of_worship)$"];
+  );out tags qt 600;`;
+  try{
+    const res=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:q});
+    if(!res.ok) return null;
+    const j=await res.json();
+    const c={uni:0,eat:0,shop:0,park:0,health:0,hosp:0,transit:0,station:0,junction:0,constr:0,community:0};
+    (j.elements||[]).forEach(e=>{const t=e.tags||{};
+      if(/^(university|college)$/.test(t.amenity||'')) c.uni++;
+      else if(/^(restaurant|cafe|fast_food)$/.test(t.amenity||'')) c.eat++;
+      else if(t.shop) c.shop++;
+      else if(/^(park|playground|pitch|garden)$/.test(t.leisure||'')) c.park++;
+      else if((t.amenity||'')==='hospital'){c.hosp++;c.health++;}
+      else if(/^(clinic|doctors|pharmacy)$/.test(t.amenity||'')) c.health++;
+      else if(t.highway==='bus_stop'||t.public_transport==='platform') c.transit++;
+      else if(t.railway==='station') c.station++;
+      else if(t.highway==='motorway_junction') c.junction++;
+      else if(t.landuse==='construction'||t.building==='construction') c.constr++;
+      else if(/^(library|community_centre|place_of_worship)$/.test(t.amenity||'')) c.community++;
+    });
+    return c;
+  }catch(e){ return null; }
+}
+
+function livabilityResults(c, census){
+  const out={};
+  if(c){
+    out[37] = c.uni>0
+      ? {label:'No Risk',score:0,desc:`${c.uni} college/university campus feature(s) within ~1.5 mi.`,impacts:{property:IMP('No','Campus proximity supports rental demand.')}}
+      : {label:'Low Risk',score:2,desc:'No college/university mapped within ~1.5 mi (context, not a hazard).'};
+    const retail=c.eat+c.shop;
+    out[38] = retail>=40 ? {label:'No Risk',score:0,desc:`${c.eat} eateries and ${c.shop} shops within ~1 mi — amenity-rich.`,impacts:{property:IMP('No','Strong retail/dining density supports value.')}}
+      : retail>=10 ? {label:'Low Risk',score:2,desc:`${c.eat} eateries and ${c.shop} shops within ~1 mi.`}
+      : {label:'Moderate Risk',score:5,desc:`Only ${retail} dining/retail places mapped within ~1 mi — car-dependent for errands.`,impacts:{property:IMP('Moderate','Thin local amenities can soften demand.')}};
+    out[39] = c.park>=5 ? {label:'No Risk',score:0,desc:`${c.park} parks/playgrounds/green spaces within ~1 mi.`,impacts:{health:IMP('No','Good green-space access.')}}
+      : c.park>=1 ? {label:'Low Risk',score:2,desc:`${c.park} park feature(s) within ~1 mi.`}
+      : {label:'Moderate Risk',score:5,desc:'No parks mapped within ~1 mi.',impacts:{health:IMP('Moderate','Limited nearby green space.')}};
+    const walk=c.transit+c.station;
+    out[40] = walk>=15 ? {label:'No Risk',score:0,desc:`${c.transit} transit stops${c.station?` + ${c.station} rail station(s)`:''} within walking range.`,impacts:{property:IMP('No','Transit-rich, walkable location.')}}
+      : walk>=5 ? {label:'Low Risk',score:2,desc:`${walk} transit stop(s) within walking range.`}
+      : walk>=1 ? {label:'Moderate Risk',score:5,desc:`Only ${walk} transit stop(s) within walking range — mostly car-dependent.`}
+      : {label:'Moderate Risk',score:6,desc:'No transit stops mapped within walking range — car-dependent.',impacts:{property:IMP('Moderate','Car-dependence narrows the buyer pool.'),health:IMP('Low','Less walkable daily environment.')}};
+    out[41] = (c.junction>0 && c.station>0) ? {label:'No Risk',score:0,desc:'Freeway access (~2.5 mi) and a rail station (~2 mi) both within reach.'}
+      : c.junction>0 ? {label:'Low Risk',score:2,desc:'Freeway on-ramp within ~2.5 mi; no rail station within ~2 mi.'}
+      : {label:'Moderate Risk',score:5,desc:'No freeway ramp within ~2.5 mi — longer surface-street commutes.',impacts:{property:IMP('Moderate','Weak regional access can weigh on resale.')}};
+    out[42] = c.hosp>0 ? {label:'No Risk',score:0,desc:`Hospital within ~1.2 mi (${c.health} healthcare features nearby overall).`,impacts:{health:IMP('No','Emergency care is close.')}}
+      : c.health>0 ? {label:'Low Risk',score:2,desc:`${c.health} clinic/pharmacy feature(s) within ~1.2 mi; nearest hospital is farther.`}
+      : {label:'High Risk',score:8,desc:'No healthcare facilities mapped within ~1.2 mi.',impacts:{health:IMP('High','Distance to care matters in emergencies.')}};
+    out[44] = c.community>=5 ? {label:'No Risk',score:0,desc:`${c.community} community places (libraries, centers, congregations) within ~1 mi.`}
+      : c.community>=1 ? {label:'Low Risk',score:2,desc:`${c.community} community place(s) within ~1 mi.`}
+      : {label:'Moderate Risk',score:5,desc:'No community infrastructure mapped within ~1 mi.'};
+    out[45] = c.constr>=4 ? {label:'Moderate Risk',score:5,desc:`${c.constr} active construction sites mapped within ~1 mi — growth, but expect change/noise.`,impacts:{property:IMP('Moderate','Heavy nearby construction: short-term nuisance, uncertain end-state.')}}
+      : c.constr>=1 ? {label:'Low Risk',score:2,desc:`${c.constr} construction site(s) mapped within ~1 mi.`}
+      : {label:'No Risk',score:0,desc:'No active construction mapped within ~1 mi.'};
+  }
+  if(census && census.home && census.home!=='n/a'){
+    out[43] = {label:'No Risk',score:0,desc:`ZIP median home value ${census.home} (Census ACS). Open the Zillow link for market trends.`,
+               impacts:{insurance:IMP('Low','Replacement cost scales with local values.')}};
+  }
+  return out;
+}
+
 /* ---------- Render ---------- */
 function badge(label, score){
   const k = !label ? 'pending' : label.toLowerCase().includes('high') ? 'high'
@@ -186,6 +318,7 @@ function lvlPill(level){ return `<span class="lvl lvl-${LVLCLASS[level]||'na'}">
 // effective per-dimension impact, with live data (flood) overriding where known
 function effImpact(f, live){
   const im={health:{...f.impact.health}, property:{...f.impact.property}, insurance:{...f.impact.insurance}};
+  if(live && live.impacts){ for(const k of ['health','property','insurance']){ if(live.impacts[k]) im[k]={...live.impacts[k]}; } }
   if(live && f.n===8){
     const hi=live.score>=8;
     im.property ={level:hi?'High':'Low', why:hi?'In a Special Flood Hazard Area — lowers value & resale.':'Minimal flood zone (Zone X) — little value impact.'};
@@ -275,7 +408,7 @@ function renderOverall(liveResults){
   const liveN = Object.keys(STATE._live||{}).length;
   $('#methodBody').innerHTML =
     `<p>Each of the 36 factors carries an impact level per dimension &mdash; <b>NA</b> (excluded), <b>No</b> (0), <b>Low</b> (2.5), <b>Moderate</b> (6), <b>High</b> (9). A dimension's score is the average across its applicable factors; the overall score is the average of the three dimensions, banded as <b>0 No &middot; 1&ndash;4 Low &middot; 5&ndash;7 Moderate &middot; 8&ndash;10 High</b>.</p>
-     <p><b>What's live vs. baseline:</b> ${liveN} factor(s) are currently verified against live agency data for this exact address (FEMA flood zone${liveN>1?', Census demographics':''}) and override the baseline where they apply &mdash; e.g. a Special Flood Hazard Area raises Property &amp; Insurance sharply. The remaining factors use their typical California exposure profile, so treat this as an <b>indicative screening score</b>, not an address-certified rating. More live lookups (CAL FIRE, CGS, CalGEM&hellip;) can be added over time to make it increasingly address-specific.</p>
+     <p><b>What's live vs. baseline:</b> ${liveN} factor(s) are scored from live, address-specific data (FEMA flood, CGS fault / liquefaction / landslide zones, CAL FIRE fire severity, OpenStreetMap amenity counts, Census ACS) and override the baseline where they apply &mdash; e.g. a Special Flood Hazard Area raises Property &amp; Insurance sharply. The remaining factors use their typical California exposure profile, so treat this as an <b>indicative screening score</b>, not an address-certified rating. More live lookups (CAL FIRE, CGS, CalGEM&hellip;) can be added over time to make it increasingly address-specific.</p>
      <p>Informational only &mdash; not a substitute for professional inspection, geotechnical study, or insurance underwriting.</p>`;
   return RISK;
 }
@@ -395,7 +528,6 @@ async function analyze(){
   try{ st=await geocode(q); }
   catch(e){ setStatus(e.message,'err'); $('#go').disabled=false; return; }
   STATE=st;
-  if(!ZIP_CITY[st.zip]){ showComingSoon(st); $('#go').disabled=false; return; }
   try{
   $('#comingsoon').classList.add('hidden');
   $('#empty').classList.add('hidden');
@@ -412,10 +544,20 @@ async function analyze(){
   const liveResults={};
   renderProfile(null, st);
 
-  // live lookups in parallel
-  const [census, flood] = await Promise.all([ censusByZip(st.zip), femaFloodZone(st.lat, st.lon) ]);
+  // live lookups in parallel (hazards + livability)
+  const [census, flood, liq, lands, fault, fhsz, amen] = await Promise.all([
+    censusByZip(st.zip), femaFloodZone(st.lat, st.lon),
+    cgsLiquefaction(st.lat, st.lon), cgsLandslide(st.lat, st.lon),
+    cgsFault(st.lat, st.lon), calfireFHSZ(st.lat, st.lon),
+    overpassAmenities(st.lat, st.lon)
+  ]);
   renderProfile(census, st);
   if(flood){ liveResults[8]=flood; }
+  if(liq){ liveResults[6]=liq; }
+  if(lands){ liveResults[7]=lands; }
+  if(fault){ liveResults[5]=fault; }
+  if(fhsz){ liveResults[11]=fhsz; }
+  Object.assign(liveResults, livabilityResults(amen, census));
   if(census){ liveResults[1]={label:'No Risk', score:0, desc:`ZIP ${st.zip}: pop ${census.pop}, median income ${census.income}, median home ${census.home}, ${census.bachelors} bachelor's+.`}; }
 
   // summary view (table) + overall risk score
@@ -469,7 +611,7 @@ async function makePDF(){
   doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(220,228,240);
   doc.text(doc.splitTextToSize(STATE.display, CW), M, 94);
   doc.setFontSize(10); doc.setTextColor(157,180,214);
-  doc.text(`ZIP ${STATE.zip||'n/a'}   ·   ${(+STATE.lat).toFixed(5)}, ${(+STATE.lon).toFixed(5)}   ·   ${new Date().toLocaleDateString()}   ·   36 factors`, M, 150);
+  doc.text(`ZIP ${STATE.zip||'n/a'}   ·   ${(+STATE.lat).toFixed(5)}, ${(+STATE.lon).toFixed(5)}   ·   ${new Date().toLocaleDateString()}   ·   ${FACTORS.length} factors`, M, 150);
   let y=190;
   // dimension cards
   const dims=[['HEALTH RISK',d.health],['PROPERTY VALUE RISK',d.prop],['INSURANCE COST',d.ins]];
@@ -492,7 +634,7 @@ async function makePDF(){
   /* ---- Factor cards ---- */
   doc.addPage(); y=M+6;
   doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(20,28,46);
-  doc.text('Factor Assessments (1–36)', M, y); y+=8;
+  doc.text('Factor Assessments', M, y); y+=8;
   doc.setDrawColor(20,28,46); doc.setLineWidth(1.5); doc.line(M,y,W-M,y); doc.setLineWidth(1); y+=14;
 
   const LVLPDF={ // [fill, border, text]

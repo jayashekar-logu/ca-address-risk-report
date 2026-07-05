@@ -29,7 +29,7 @@ function fill(tmpl, st){
 }
 
 /* ---------- Geocoding (CA-only) ---------- */
-async function geocode(q){
+async function nominatimGeocode(q){
   const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1`
             + `&countrycodes=us&limit=1&q=${encodeURIComponent(q)}`;
   let data;
@@ -50,6 +50,29 @@ async function geocode(q){
     display:r.display_name.replace(', United States','')
   };
 }
+async function photonGeocode(q){
+  const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=en`);
+  if(!r.ok) throw new Error('Geocoder returned '+r.status);
+  const j = await r.json(); const f=(j.features||[])[0];
+  if(!f) throw new Error('Address not found. Try a fuller street address.');
+  const p=f.properties||{};
+  if(p.state!=='California') throw new Error(`That address resolves to ${p.state||'outside California'}. This tool is California-only.`);
+  const line1=[p.housenumber,p.street].filter(Boolean).join(' ')||p.name||'';
+  return { lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0],
+    zip:p.postcode||'', city:p.city||p.town||p.village||p.county||'', county:p.county||'',
+    display:[line1, p.city||p.town||p.village, 'California', p.postcode].filter(Boolean).join(', ') };
+}
+
+/* Nominatim first (best formatting), Photon fallback (Nominatim rate-limits
+   bursts and forbids autocomplete, so repeat searches can get throttled). */
+async function geocode(q){
+  try{ return await nominatimGeocode(q); }
+  catch(e){
+    try{ return await photonGeocode(q); }
+    catch(e2){ throw (e2.message && e2.message.includes('California-only')) ? e2 : e; }
+  }
+}
+
 /* ---------- Live lookups ---------- */
 async function censusByZip(zip){
   if(!zip) return null;
@@ -553,14 +576,27 @@ async function makePDF(){
 
 /* ---------- Address autosuggest ---------- */
 let sugTimer=null, sugItems=[], sugActive=-1;
+const SUG_CACHE = {};
 async function fetchSuggest(q){
-  const url=`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=us&limit=6&q=${encodeURIComponent(q)}`;
-  try{ const r=await fetch(url,{headers:{'Accept':'application/json'}}); if(!r.ok) return [];
-    const data=await r.json();
-    return data.filter(x=>(x.address&&x.address.state==='California'))
-      .map(x=>({display:x.display_name.replace(', United States',''), lat:x.lat, lon:x.lon}));
+  const key=q.toLowerCase();
+  if(SUG_CACHE[key]) return SUG_CACHE[key];
+  const url=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en`;
+  try{
+    const r=await fetch(url); if(!r.ok) return [];
+    const j=await r.json();
+    const out=(j.features||[])
+      .filter(f=>((f.properties||{}).state==='California'))
+      .map(f=>{ const p=f.properties||{};
+        const line1=[p.housenumber,p.street].filter(Boolean).join(' ')||p.name||'';
+        const display=[...new Set([line1, p.city||p.town||p.village, 'California', p.postcode].filter(Boolean))].join(', ');
+        return { display, lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0] };
+      })
+      .filter(x=>x.display);
+    SUG_CACHE[key]=out;
+    return out;
   }catch(e){ return []; }
 }
+
 function renderSuggest(items){
   const box=$('#suggest'); sugItems=items; sugActive=-1;
   if(!items.length){ box.classList.add('hidden'); box.innerHTML=''; return; }
@@ -579,7 +615,7 @@ function onAddrInput(){
   if(sugTimer) clearTimeout(sugTimer);
   if(q.length<4){ $('#suggest').classList.add('hidden'); return; }
   $('#suggest').classList.remove('hidden'); $('#suggest').innerHTML='<div class="loading">Searching California addresses…</div>';
-  sugTimer=setTimeout(async()=>{ renderSuggest(await fetchSuggest(q)); }, 320);
+  sugTimer=setTimeout(async()=>{ renderSuggest(await fetchSuggest(q)); }, 450);
 }
 function onAddrKey(e){
   const box=$('#suggest'); const open=!box.classList.contains('hidden') && sugItems.length;

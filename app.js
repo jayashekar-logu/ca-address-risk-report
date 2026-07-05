@@ -254,6 +254,77 @@ function renderOverall(liveResults){
   return RISK;
 }
 
+/* ---------- Risk score shown on the map ---------- */
+let mapRiskCtl = null;
+function updateMapRisk(st){
+  if(!map || !RISK) return;
+  const col = k => RC[BANDKEY[k.band]];
+  // corner badge (click -> scroll to the full score panel)
+  if(mapRiskCtl){ try{ map.removeControl(mapRiskCtl); }catch(e){} }
+  mapRiskCtl = L.control({position:'bottomleft'});
+  mapRiskCtl.onAdd = function(){
+    const div = L.DomUtil.create('div','map-riskbadge');
+    div.innerHTML = `<div class="mrb-top">OVERALL RISK</div>
+      <div class="mrb-score" style="color:${col(RISK.overall)}">${RISK.overall.score.toFixed(1)}<span>/10</span></div>
+      <div class="mrb-band" style="color:${col(RISK.overall)}">${RISK.overall.band}</div>
+      <div class="mrb-dims">
+        <span title="Health">H ${RISK.dims.health.score.toFixed(1)}</span>
+        <span title="Property Value">P ${RISK.dims.property.score.toFixed(1)}</span>
+        <span title="Insurance Cost">I ${RISK.dims.insurance.score.toFixed(1)}</span>
+      </div>`;
+    L.DomEvent.disableClickPropagation(div);
+    div.addEventListener('click', ()=>{ const el=document.querySelector('.riskcol'); if(el) el.scrollIntoView({behavior:'smooth', block:'center'}); });
+    return div;
+  };
+  mapRiskCtl.addTo(map);
+  // richer marker popup with the same breakdown
+  if(marker){
+    marker.bindPopup(`<b>${st.display}</b><br>
+      Overall risk: <b style="color:${col(RISK.overall)}">${RISK.overall.score.toFixed(1)}/10 \u00b7 ${RISK.overall.band}</b><br>
+      <span style="font-size:11px">Health ${RISK.dims.health.score.toFixed(1)} \u00b7 Property ${RISK.dims.property.score.toFixed(1)} \u00b7 Insurance ${RISK.dims.insurance.score.toFixed(1)}</span>`);
+  }
+}
+
+/* ---------- Interactive live hazard map ---------- */
+/* Verified public agency services drawn as toggleable overlays. */
+const MAP_OVERLAYS = [
+  { name:'FEMA Flood Zones',              type:'dynamic', on:true,
+    url:'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer', layers:[28], opacity:.45 },
+  { name:'Liquefaction Zones (CGS)',      type:'dynamic',
+    url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Liquefaction_Zones/MapServer', opacity:.55 },
+  { name:'Landslide Zones (CGS)',         type:'dynamic',
+    url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Landslide_Zones/MapServer', opacity:.55 },
+  { name:'Earthquake Fault Zones (CGS)',  type:'feature',
+    url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Fault_Zones/FeatureServer/0',
+    style:{ color:'#c41e3a', weight:2, fillOpacity:.15 } },
+  { name:'Fire Hazard Severity (CAL FIRE)', type:'dynamic',
+    url:'https://services.gis.ca.gov/arcgis/rest/services/Environment/Fire_Severity_Zones/MapServer', opacity:.5 },
+];
+
+function buildMainMap(st){
+  if(map){ try{ map.remove(); }catch(e){} map=null; }
+  map = L.map('map', { scrollWheelZoom:true }).setView([st.lat, st.lon], 14);
+  const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'\u00a9 OpenStreetMap'});
+  const imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'\u00a9 Esri'});
+  streets.addTo(map);
+  const overlays = {};
+  if(window.L && window.L.esri){
+    MAP_OVERLAYS.forEach(o=>{
+      let layer=null;
+      try{
+        layer = o.type==='feature'
+          ? L.esri.featureLayer({url:o.url, style:()=>o.style||{}})
+          : L.esri.dynamicMapLayer({url:o.url, opacity:o.opacity ?? .5, layers:o.layers});
+      }catch(e){ return; }
+      overlays[o.name]=layer;
+      if(o.on) layer.addTo(map);
+    });
+  }
+  L.control.layers({ 'Streets':streets, 'Imagery':imagery }, overlays, {collapsed:false, position:'topright'}).addTo(map);
+  L.control.scale({imperial:true}).addTo(map);
+  marker = L.marker([st.lat, st.lon]).addTo(map).bindPopup(st.display).openPopup();
+}
+
 /* ---------- Main flow ---------- */
 async function analyze(){
   const q=$('#addr').value.trim();
@@ -273,12 +344,7 @@ async function analyze(){
   renderLegend();
   invalidateMapSoon();
 
-  // map
-  if(!map){ map=L.map('map').setView([st.lat,st.lon],14);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-  } else { map.setView([st.lat,st.lon],14); }
-  if(marker) marker.remove();
-  marker=L.marker([st.lat,st.lon]).addTo(map).bindPopup(st.display).openPopup();
+  buildMainMap(st);
 
   const liveResults={};
   renderProfile(null, st);
@@ -294,6 +360,7 @@ async function analyze(){
   renderSummaryTable(st, liveResults);
   STATE._live=liveResults;
   const R = renderOverall(liveResults);
+  updateMapRisk(st);
   const fmt = d => `${d.band} · ${d.score.toFixed(1)}/10`;
   const d = { health: fmt(R.dims.health), prop: fmt(R.dims.property), ins: fmt(R.dims.insurance) };
   $('#dimHealth').textContent=d.health; $('#dimProp').textContent=d.prop; $('#dimIns').textContent=d.ins;

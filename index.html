@@ -36,7 +36,7 @@
 <main class="wrap">
   <div id="results" class="hidden">
 
-    <!-- location summary -->
+    <!-- location summary + overall risk + live layered map -->
     <section class="summary panel">
       <div class="loc">
         <div>
@@ -45,45 +45,30 @@
         </div>
         <div class="loc-coords" id="locCoords"></div>
       </div>
-      <div class="summary-grid">
-        <div id="map"></div>
-        <div class="rightcol">
-          <div class="dims">
-            <div class="dim"><div class="l">Health Risk</div><div class="v" id="dimHealth">—</div></div>
-            <div class="dim"><div class="l">Property Value Risk</div><div class="v" id="dimProp">—</div></div>
-            <div class="dim"><div class="l">Insurance Cost</div><div class="v" id="dimIns">—</div></div>
-          </div>
-          <div class="profgrid" id="profile"></div>
+      <div class="summary-grid hero-grid">
+        <div class="mapcol">
+          <div id="map"></div>
+          <div class="map-hint">Live hazard map — toggle FEMA flood, CGS liquefaction / landslide / fault zones and CAL FIRE severity layers (top-right), switch Streets/Imagery, pan &amp; zoom.</div>
         </div>
-      </div>
-    </section>
-
-    <!-- OVERALL RISK SCORE -->
-    <section class="overall" id="overallSection">
-      <div class="sec-head">
-        <h2>Overall risk score</h2>
-        <span class="hint">Composite of all 36 factors below &middot; refined by live agency lookups</span>
-      </div>
-      <div class="panel overall-panel">
-        <div class="overall-grid">
+        <div class="riskcol">
+          <div class="risk-head">Overall risk score</div>
           <div class="gaugebox">
             <svg id="gauge" viewBox="0 0 220 130" aria-label="overall risk gauge"></svg>
             <div class="gauge-num" id="gaugeNum">&mdash;</div>
             <div class="gauge-band" id="gaugeBand"></div>
           </div>
-          <div class="dimside">
-            <div class="dimtabs" id="dimTabs"></div>
-            <div class="drivers">
-              <div class="drivers-title" id="driversTitle"></div>
-              <div id="driversList"></div>
-            </div>
+          <div class="dimtabs" id="dimTabs"></div>
+          <div class="drivers">
+            <div class="drivers-title" id="driversTitle"></div>
+            <div id="driversList"></div>
           </div>
         </div>
-        <details class="method" id="methodBox">
-          <summary>How this score is calculated</summary>
-          <div id="methodBody"></div>
-        </details>
       </div>
+      <div class="profgrid" id="profile"></div>
+      <details class="method" id="methodBox">
+        <summary>How this score is calculated</summary>
+        <div id="methodBody"></div>
+      </details>
     </section>
 
     <!-- AT-A-GLANCE SUMMARY (like report pages 2–8) -->

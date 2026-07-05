@@ -211,3 +211,25 @@ table.sumtable tbody tr:hover{background:#f7faff}
 .method p{font-size:12.5px;color:#475468;line-height:1.6}
 tr.flash{animation:rowflash 1.6s ease-out}
 @keyframes rowflash{0%{background:#fff3c9}100%{background:transparent}}
+
+/* ---------- HERO: live map + risk score ---------- */
+.hero-grid{grid-template-columns:1fr;gap:18px}
+@media(min-width:920px){.hero-grid{grid-template-columns:1.15fr .85fr}}
+.mapcol #map{height:430px}
+.map-hint{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.5}
+.riskcol{display:flex;flex-direction:column;gap:12px;min-width:0}
+.risk-head{font-size:12px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:800}
+.riskcol .gaugebox svg{max-width:190px}
+.riskcol .gauge-num{font-size:23px;margin-top:-34px}
+.riskcol .drivers{max-height:260px;overflow:auto;padding-right:4px}
+.leaflet-control-layers{font-size:11.5px;border-radius:10px;box-shadow:var(--shadow)}
+.leaflet-control-layers label{margin:2px 0}
+
+/* ---------- Risk badge on the map ---------- */
+.map-riskbadge{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);padding:9px 13px;text-align:center;cursor:pointer;min-width:96px}
+.map-riskbadge:hover{background:#f7faff}
+.mrb-top{font-size:8.5px;letter-spacing:.8px;font-weight:800;color:var(--muted)}
+.mrb-score{font-size:22px;font-weight:800;line-height:1.15}
+.mrb-score span{font-size:11px;font-weight:700;color:var(--muted)}
+.mrb-band{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.mrb-dims{display:flex;justify-content:center;gap:7px;margin-top:5px;font-size:10px;font-weight:700;color:#42526b;border-top:1px solid var(--line);padding-top:5px}

@@ -25,7 +25,8 @@ function fill(tmpl, st){
     .replaceAll('{LON}', st.lon.toFixed(6))
     .replaceAll('{LONABS}', Math.abs(st.lon).toFixed(6))
     .replaceAll('{ZIP}', st.zip||'')
-    .replaceAll('{CITY}', encodeURIComponent(st.city||''));
+    .replaceAll('{CITY}', encodeURIComponent(st.city||''))
+    .replaceAll('{COUNTY}', encodeURIComponent(st.county||''));
 }
 
 /* ---------- Geocoding (CA-only) ---------- */
@@ -110,59 +111,65 @@ async function femaFloodZone(lat, lon){
 }
 
 /* ---------- Live hazard point-queries (CGS / CAL FIRE) ---------- */
-async function agsQuery(url, lat, lon, extra=''){
-  const q=`${url}/query?geometry=${lon},${lat}&geometryType=esriGeometryPoint&inSR=4326`
-        +`&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=false&f=json${extra}`;
-  const res=await fetch(q); if(!res.ok) return null;
-  const j=await res.json(); if(j.error) return null;
-  return j.features||[];
+/* Uses esri-leaflet's query engine: it falls back to JSONP when a server
+   (like gis.conservation.ca.gov) doesn't send CORS headers, so these work
+   in the browser where plain fetch() would be blocked. */
+function esriQuery(url, build){
+  return new Promise(resolve=>{
+    if(!(window.L && window.L.esri)) return resolve(null);
+    try{
+      build(L.esri.query({url})).returnGeometry(false).run((err,fc)=>{
+        resolve(err ? null : ((fc && fc.features) || []));
+      });
+    }catch(e){ resolve(null); }
+  });
 }
 const IMP=(level,why)=>({level,why});
 
 async function cgsLiquefaction(lat,lon){
-  try{ const f=await agsQuery('https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Liquefaction_Zones/MapServer/0',lat,lon);
-    if(f===null) return null;
-    return f.length
-      ? {label:'High Risk',score:7,desc:'Inside a CGS liquefaction Zone of Required Investigation at this point.',
-         impacts:{property:IMP('High','Mapped liquefaction zone — site investigation required for development.'),insurance:IMP('Moderate','Adds to earthquake / structural coverage cost.')}}
-      : {label:'Low Risk',score:1,desc:'Outside mapped CGS liquefaction zones at this point.',
-         impacts:{property:IMP('Low','Not in a mapped liquefaction zone.'),insurance:IMP('Low','No liquefaction-zone surcharge context.')}};
-  }catch(e){ return null; }
+  const f=await esriQuery('https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Liquefaction_Zones/MapServer/0',
+                          q=>q.intersects(L.latLng(lat,lon)));
+  if(f===null) return null;
+  return f.length
+    ? {label:'High Risk',score:7,desc:'Inside a CGS liquefaction Zone of Required Investigation at this point.',
+       impacts:{property:IMP('High','Mapped liquefaction zone \u2014 site investigation required for development.'),insurance:IMP('Moderate','Adds to earthquake / structural coverage cost.')}}
+    : {label:'Low Risk',score:1,desc:'Outside mapped CGS liquefaction zones at this point.',
+       impacts:{property:IMP('Low','Not in a mapped liquefaction zone.'),insurance:IMP('Low','No liquefaction-zone surcharge context.')}};
 }
 async function cgsLandslide(lat,lon){
-  try{ const f=await agsQuery('https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Landslide_Zones/MapServer/0',lat,lon);
-    if(f===null) return null;
-    return f.length
-      ? {label:'High Risk',score:7,desc:'Inside a CGS earthquake-induced landslide zone at this point.',
-         impacts:{property:IMP('High','Mapped landslide zone — slope-stability investigation applies.')}}
-      : {label:'Low Risk',score:1,desc:'Outside mapped CGS landslide zones at this point.',
-         impacts:{property:IMP('Low','Not in a mapped landslide zone.')}};
-  }catch(e){ return null; }
+  const f=await esriQuery('https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Landslide_Zones/MapServer/0',
+                          q=>q.intersects(L.latLng(lat,lon)));
+  if(f===null) return null;
+  return f.length
+    ? {label:'High Risk',score:7,desc:'Inside a CGS earthquake-induced landslide zone at this point.',
+       impacts:{property:IMP('High','Mapped landslide zone \u2014 slope-stability investigation applies.')}}
+    : {label:'Low Risk',score:1,desc:'Outside mapped CGS landslide zones at this point.',
+       impacts:{property:IMP('Low','Not in a mapped landslide zone.')}};
 }
 async function cgsFault(lat,lon){
-  try{ const f=await agsQuery('https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Fault_Zones/FeatureServer/0',lat,lon,'&distance=500&units=esriSRUnit_Meter');
-    if(f===null) return null;
-    return f.length
-      ? {label:'High Risk',score:8,desc:'Within ~500 m of an Alquist-Priolo earthquake fault zone.',
-         impacts:{property:IMP('High','Fault-zone proximity — disclosure required, surface-rupture exposure.'),insurance:IMP('High','Earthquake coverage priced for near-fault exposure.')}}
-      : {label:'Low Risk',score:2,desc:'No Alquist-Priolo fault zone within ~500 m of this point.',
-         impacts:{property:IMP('Low','No mapped fault zone in the immediate vicinity.'),insurance:IMP('Moderate','Regional earthquake exposure still applies (statewide).')}};
-  }catch(e){ return null; }
+  const f=await esriQuery('https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Fault_Zones/FeatureServer/0',
+                          q=>q.nearby(L.latLng(lat,lon), 500));
+  if(f===null) return null;
+  return f.length
+    ? {label:'High Risk',score:8,desc:'Within ~500 m of an Alquist-Priolo earthquake fault zone.',
+       impacts:{property:IMP('High','Fault-zone proximity \u2014 disclosure required, surface-rupture exposure.'),insurance:IMP('High','Earthquake coverage priced for near-fault exposure.')}}
+    : {label:'Low Risk',score:2,desc:'No Alquist-Priolo fault zone within ~500 m of this point.',
+       impacts:{property:IMP('Low','No mapped fault zone in the immediate vicinity.'),insurance:IMP('Moderate','Regional earthquake exposure still applies (statewide).')}};
 }
 async function calfireFHSZ(lat,lon){
-  try{ const f=await agsQuery('https://services.gis.ca.gov/arcgis/rest/services/Environment/Fire_Severity_Zones/MapServer/0',lat,lon);
-    if(f===null) return null;
-    const txt=f.length?JSON.stringify(f[0].attributes).toLowerCase():'';
-    if(!f.length) return {label:'Low Risk',score:2,desc:'Not in a designated Fire Hazard Severity Zone at this point.',
-      impacts:{insurance:IMP('Low','No FHSZ designation here.'),property:IMP('Low','Outside designated hazard zones.')}};
-    if(txt.includes('very high')) return {label:'High Risk',score:9,desc:'CAL FIRE Very High Fire Hazard Severity Zone at this point.',
-      impacts:{insurance:IMP('High','VHFHSZ drives costly or non-renewed coverage.'),property:IMP('Moderate','Wildfire-loss exposure weighs on value.'),health:IMP('Low','Smoke episodes affect respiratory health.')}};
-    if(txt.includes('high')) return {label:'High Risk',score:8,desc:'CAL FIRE High Fire Hazard Severity Zone at this point.',
-      impacts:{insurance:IMP('High','High FHSZ raises premiums and renewal risk.'),property:IMP('Moderate','Wildfire exposure weighs on value.')}};
-    if(txt.includes('moderate')) return {label:'Moderate Risk',score:5,desc:'CAL FIRE Moderate Fire Hazard Severity Zone at this point.',
-      impacts:{insurance:IMP('Moderate','Moderate FHSZ affects pricing.')}};
-    return {label:'Low Risk',score:3,desc:'Fire Hazard Severity Zone data returned an unclassified designation here.'};
-  }catch(e){ return null; }
+  const f=await esriQuery('https://services.gis.ca.gov/arcgis/rest/services/Environment/Fire_Severity_Zones/MapServer/0',
+                          q=>q.intersects(L.latLng(lat,lon)));
+  if(f===null) return null;
+  if(!f.length) return {label:'Low Risk',score:2,desc:'Not in a designated Fire Hazard Severity Zone at this point.',
+    impacts:{insurance:IMP('Low','No FHSZ designation here.'),property:IMP('Low','Outside designated hazard zones.')}};
+  const txt=JSON.stringify(f[0].properties||f[0].attributes||{}).toLowerCase();
+  if(txt.includes('very high')) return {label:'High Risk',score:9,desc:'CAL FIRE Very High Fire Hazard Severity Zone at this point.',
+    impacts:{insurance:IMP('High','VHFHSZ drives costly or non-renewed coverage.'),property:IMP('Moderate','Wildfire-loss exposure weighs on value.'),health:IMP('Low','Smoke episodes affect respiratory health.')}};
+  if(txt.includes('high')) return {label:'High Risk',score:8,desc:'CAL FIRE High Fire Hazard Severity Zone at this point.',
+    impacts:{insurance:IMP('High','High FHSZ raises premiums and renewal risk.'),property:IMP('Moderate','Wildfire exposure weighs on value.')}};
+  if(txt.includes('moderate')) return {label:'Moderate Risk',score:5,desc:'CAL FIRE Moderate Fire Hazard Severity Zone at this point.',
+    impacts:{insurance:IMP('Moderate','Moderate FHSZ affects pricing.')}};
+  return {label:'Low Risk',score:3,desc:'In a Fire Hazard Severity Zone with an unclassified designation here.'};
 }
 
 /* ---------- Live livability lookups (OpenStreetMap Overpass) ---------- */
@@ -310,7 +317,25 @@ function renderSummaryTable(st, liveResults){
        <th>Health impact</th><th>Property&nbsp;Value impact</th><th>Insurance impact</th><th>Risk</th>
      </tr></thead><tbody>${rows}</tbody>`;
   buildGlanceControls();
+  wireImpactLinks();
 }
+
+/* ---------- Impact summary modal (from factor-explanation workbooks) ---------- */
+function wireImpactLinks(){
+  document.querySelectorAll('#summaryTable .impact-link').forEach(a=>a.addEventListener('click',e=>{
+    e.preventDefault();
+    const n=+a.dataset.n, imgs=(window.FACTOR_EXPLAIN||{})[n]||[];
+    $('#xmodalTitle').textContent = a.dataset.name + ' — impact summary';
+    $('#xmodalBody').innerHTML = imgs.map(s=>`<img src="${s}" loading="lazy" alt="impact summary"/>`).join('');
+    $('#xmodal').classList.remove('hidden');
+  }));
+}
+(function(){
+  document.addEventListener('click', e=>{
+    if(e.target && (e.target.id==='xmodalClose' || e.target.id==='xmodal')) $('#xmodal').classList.add('hidden');
+  });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ const m=$('#xmodal'); if(m) m.classList.add('hidden'); } });
+})();
 
 /* ---------- At-a-glance interactivity: category chips, search, risk sort ---------- */
 let GLANCE = {cat:'*', q:'', sort:'num'};
@@ -521,9 +546,9 @@ function updateMapRisk(st){
 const MAP_OVERLAYS = [
   { name:'FEMA Flood Zones',              type:'dynamic', on:true,
     url:'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer', layers:[28], opacity:.45 },
-  { name:'Liquefaction Zones (CGS)',      type:'dynamic',
+  { name:'Liquefaction Zones (CGS)',      type:'tiled',
     url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Liquefaction_Zones/MapServer', opacity:.55 },
-  { name:'Landslide Zones (CGS)',         type:'dynamic',
+  { name:'Landslide Zones (CGS)',         type:'tiled',
     url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Landslide_Zones/MapServer', opacity:.55 },
   { name:'Earthquake Fault Zones (CGS)',  type:'feature',
     url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Fault_Zones/FeatureServer/0',

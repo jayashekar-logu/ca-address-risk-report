@@ -95,7 +95,7 @@ const FACTORS = [
 
  {n:13, cat:"Oil & Gas", name:"Oil, Gas & Hazard Pipelines",
   map:"https://pvnpms.phmsa.dot.gov/PublicViewer/", recenter:'search', live:null, basemap:'topo',
-  detail:"PHMSA gas-transmission and hazardous-liquid pipelines.",
+  detail:"PHMSA gas-transmission and hazardous-liquid pipelines (NPMS Public Viewer shows one county at a time — select your state and county, per the note when an address is analyzed).",
   impact:{health:{level:'Low',why:"Rupture risk for parcels near a transmission easement."},
           property:{level:'Low',why:"Easement proximity can deter some buyers."},
           insurance:{level:'Moderate',why:"Premiums can rise for parcels near a line."}}},

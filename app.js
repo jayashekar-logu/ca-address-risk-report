@@ -407,8 +407,9 @@ function openFactorModal(n){
   const {f, live, rk, what, im, mapUrl, imgs} = item;
   const score = live ? `${live.score}/10${live.label.includes('No') ? '' : ' · '+live.label.replace(' Risk','')}` : 'Open map to assess';
   const explain = imgs.length
-    ? `<button class="detail-explain-btn" type="button" data-target="detailExplain-${f.n}">Show explanation</button>
-       <div class="detail-explain hidden" id="detailExplain-${f.n}" data-name="${f.name}" data-srcs="${imgs.join('|')}"></div>`
+    ? `<div class="detail-explain" id="detailExplain-${f.n}">
+        ${imgs.map((s,i)=>`<img src="${s}" loading="lazy" alt="${f.name} explanation ${i+1}"/>`).join('')}
+       </div>`
     : `<div class="detail-empty">No explanation images are available for this factor yet.</div>`;
   $('#xmodalTitle').textContent = `#${f.n} ${f.name}`;
   $('#xmodalBody').innerHTML = `<div class="detail-modal">
@@ -445,15 +446,6 @@ function openFactorModal(n){
   const foot = $('#xmodalFoot');
   if(foot) foot.textContent = 'Click outside, press Escape, or use the close button to close.';
   $('#xmodal').classList.remove('hidden');
-  const btn = $('#xmodalBody').querySelector('.detail-explain-btn');
-  if(btn) btn.addEventListener('click',()=>{
-    const target = document.getElementById(btn.dataset.target);
-    if(!target) return;
-    const isOpen = !target.classList.contains('hidden');
-    if(!isOpen) loadExplanationImages(target);
-    target.classList.toggle('hidden', isOpen);
-    btn.textContent = isOpen ? 'Show explanation' : 'Hide explanation';
-  });
 }
 
 function selectVisibleFactor(){

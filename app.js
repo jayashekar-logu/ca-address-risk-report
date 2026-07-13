@@ -729,45 +729,18 @@ function goodFactors(liveResults, amen){
   return good.slice(0,4);
 }
 function renderInsights(st, R, census, amen, liveResults){
-  if(!amen){
-    const gm = term => `https://www.google.com/maps/search/${encodeURIComponent(term + ' near ' + st.display)}`;
-    $('#neighborhoodSnapshot').innerHTML = `<div class="snap-empty">
-      <b>OpenStreetMap amenities unavailable</b>
-      <p>Counts could not be loaded from OpenStreetMap for this run. Use Google Maps below to inspect nearby places around this address.</p>
-      <div class="snap-subtitle">Google Maps fallback</div>
-      <div class="snap-actions">
-        <a href="${gm('restaurants and shops')}" target="_blank" rel="noopener">Dining</a>
-        <a href="${gm('parks')}" target="_blank" rel="noopener">Parks</a>
-        <a href="${gm('transit stops')}" target="_blank" rel="noopener">Transit</a>
-        <a href="${gm('hospitals clinics pharmacies')}" target="_blank" rel="noopener">Healthcare</a>
-        <a href="${gm('community centers libraries')}" target="_blank" rel="noopener">Community</a>
-        <a href="${gm('construction')}" target="_blank" rel="noopener">Construction</a>
-      </div>
-      <div class="snap-subtitle">Factor details</div>
-      <div class="snap-actions">
-        <button type="button" data-snap-factor="38">Dining</button>
-        <button type="button" data-snap-factor="39">Parks</button>
-        <button type="button" data-snap-factor="40">Transit</button>
-        <button type="button" data-snap-factor="42">Healthcare</button>
-      </div>
-    </div>`;
-    document.querySelectorAll('#neighborhoodSnapshot [data-snap-factor]').forEach(btn=>{
-      btn.addEventListener('click',()=>openFactorModal(+btn.dataset.snapFactor));
-    });
-    return;
-  }
   const retail = amen ? amen.eat + amen.shop : null;
   const items = [
-    [retail, 'Dining / retail', 38],
-    [amen.park, 'Parks', 39],
-    [amen.transit + amen.station, 'Transit points', 40],
-    [amen.health, 'Healthcare', 42],
-    [amen.community, 'Community places', 44],
-    [amen.constr, 'Construction', 45]
+    [amen ? retail : '—', 'Dining / retail', 38],
+    [amen ? amen.park : '—', 'Parks', 39],
+    [amen ? amen.transit + amen.station : '—', 'Transit points', 40],
+    [amen ? amen.health : '—', 'Healthcare', 42],
+    [amen ? amen.community : '—', 'Community places', 44],
+    [amen ? amen.constr : '—', 'Construction', 45]
   ];
   $('#neighborhoodSnapshot').innerHTML = `<div class="snapgrid">
-    ${items.map(([v,k,n])=>`<button type="button" data-snap-factor="${n}" aria-label="Open ${k} details"><b>${v}</b><span>${k}</span></button>`).join('')}
-  </div>`;
+    ${items.map(([v,k,n])=>`<button type="button" class="${amen?'':'muted'}" data-snap-factor="${n}" aria-label="Open ${k} details"><b>${v}</b><span>${k}</span></button>`).join('')}
+  </div>${amen ? '' : '<p class="snapnote">Counts load from OpenStreetMap. If they are blank, retry the address or use the map links in each factor.</p>'}`;
   document.querySelectorAll('#neighborhoodSnapshot [data-snap-factor]').forEach(btn=>{
     btn.addEventListener('click',()=>openFactorModal(+btn.dataset.snapFactor));
   });

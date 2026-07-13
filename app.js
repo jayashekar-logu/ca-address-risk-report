@@ -286,6 +286,9 @@ function renderScoring(){
     shows its typical impact and a live agency map recentered on your address. Informational screening only.`;
 }
 
+let SUMMARY_ITEMS = {};
+let SELECTED_FACTOR = null;
+
 function renderSummaryTable(st, liveResults){
   const gz=$('#glanceZip'); if(gz) gz.textContent = st.zip ? `\u2014 ZIP ${st.zip} \u00b7 ${ZIP_CITY[st.zip]||st.city||''}` : '';
   const NOTES = localNotesFor(st);
@@ -297,6 +300,7 @@ function renderSummaryTable(st, liveResults){
       <button class="impact-link" type="button" data-n="${f.n}" aria-expanded="false" aria-controls="explain-${f.n}">Read more</button>
       <div class="inline-explain hidden" id="explain-${f.n}" data-name="${f.name}" data-srcs="${imgs.join('|')}"></div>`;
   };
+  SUMMARY_ITEMS = {};
   const rows = FACTORS.map(f=>{
     const live=liveResults[f.n]; const rk=riskKey(live&&live.label);
     const localNote = NOTES[f.n] ? `<div class="localnote">\ud83d\udccd ${NOTES[f.n]}</div>` : '';
@@ -308,7 +312,9 @@ function renderSummaryTable(st, liveResults){
       : `<a class="rk-link" href="${mapUrl}" target="_blank" rel="noopener">Open map ↗</a>`;
     const rowRisk = live ? live.score
       : Math.max(0, ...['health','property','insurance'].map(k=>LVLNUM[im[k].level] ?? 0));
-    return `<tr id="sumrow-${f.n}" data-cat="${f.cat}" data-name="${(f.name+' '+f.cat).toLowerCase()}" data-risk="${rowRisk}">
+    const imgs = (window.FACTOR_EXPLAIN||{})[f.n]||[];
+    SUMMARY_ITEMS[f.n] = {f, live, rk, what, im, mapUrl, links, rowRisk, imgs};
+    return `<tr id="sumrow-${f.n}" class="summary-row" data-cat="${f.cat}" data-name="${(f.name+' '+f.cat).toLowerCase()}" data-risk="${rowRisk}" tabindex="0" role="button" aria-label="Show details for ${f.name}">
       <td class="num">${f.n}</td>
       <td><div class="fname">${f.name}${live?' <span class="livechip">LIVE</span>':''}</div><div class="fcat">${f.cat}</div></td>
       <td class="what">${whatCell(f, what)}</td>
@@ -325,6 +331,8 @@ function renderSummaryTable(st, liveResults){
      </tr></thead><tbody>${rows}</tbody>`;
   buildGlanceControls();
   wireImpactLinks();
+  wireSummaryRows();
+  selectVisibleFactor();
 }
 
 /* Impact-summary mapping embedded directly (fallback if explanations.js fails to load) */
@@ -374,6 +382,90 @@ function wireImpactLinks(){
     btn.textContent = isOpen ? 'Read more' : 'Show less';
   }));
 }
+
+function loadExplanationImages(panel){
+  if(!panel || panel.dataset.loaded) return;
+  const name = panel.dataset.name || 'Factor';
+  const srcs = (panel.dataset.srcs || '').split('|').filter(Boolean);
+  panel.innerHTML = srcs.map((s,i)=>`<img src="${s}" loading="lazy" alt="${name} explanation ${i+1}"/>`).join('');
+  panel.dataset.loaded = 'true';
+}
+
+function impactBlock(label, item){
+  return `<div class="detail-impact">
+    <div class="detail-impact-top"><span>${label}</span>${lvlPill(item.level)}</div>
+    <p>${item.why}</p>
+  </div>`;
+}
+
+function renderFactorDetail(n){
+  const item = SUMMARY_ITEMS[n] || SUMMARY_ITEMS[+n];
+  const panel = $('#factorDetail');
+  if(!item || !panel) return;
+  SELECTED_FACTOR = +n;
+  document.querySelectorAll('#summaryTable tbody tr').forEach(row=>{
+    const on = row.id === `sumrow-${n}`;
+    row.classList.toggle('selected', on);
+    row.setAttribute('aria-pressed', String(on));
+  });
+  const {f, live, rk, what, im, mapUrl, imgs} = item;
+  const score = live ? `${live.score}/10${live.label.includes('No') ? '' : ' · '+live.label.replace(' Risk','')}` : 'Open map to assess';
+  const explain = imgs.length
+    ? `<button class="detail-explain-btn" type="button" data-target="detailExplain-${f.n}">Show explanation</button>
+       <div class="detail-explain hidden" id="detailExplain-${f.n}" data-name="${f.name}" data-srcs="${imgs.join('|')}"></div>`
+    : `<div class="detail-empty">No explanation images are available for this factor yet.</div>`;
+  panel.innerHTML = `<div class="detail-kicker">Selected factor</div>
+    <div class="detail-head">
+      <div>
+        <h3>#${f.n} ${f.name}</h3>
+        <div class="detail-cat">${f.cat}${live?' <span class="livechip">LIVE</span>':''}</div>
+      </div>
+      <span class="detail-risk rk-${rk}">${score}</span>
+    </div>
+    <div class="detail-desc">${what}</div>
+    <div class="detail-actions">
+      <a class="btn primary detail-map" href="${mapUrl}" target="_blank" rel="noopener">Open map ↗</a>
+    </div>
+    <div class="detail-impact-grid">
+      ${impactBlock('Health', im.health)}
+      ${impactBlock('Property value', im.property)}
+      ${impactBlock('Insurance', im.insurance)}
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Explanation</div>
+      ${explain}
+    </div>`;
+  const btn = panel.querySelector('.detail-explain-btn');
+  if(btn) btn.addEventListener('click',()=>{
+    const target = document.getElementById(btn.dataset.target);
+    if(!target) return;
+    const isOpen = !target.classList.contains('hidden');
+    if(!isOpen) loadExplanationImages(target);
+    target.classList.toggle('hidden', isOpen);
+    btn.textContent = isOpen ? 'Show explanation' : 'Hide explanation';
+  });
+}
+
+function selectVisibleFactor(){
+  const visible = [...document.querySelectorAll('#summaryTable tbody tr')].filter(r=>r.style.display !== 'none');
+  if(!visible.length) return;
+  const selected = SELECTED_FACTOR && visible.find(r=>r.id === `sumrow-${SELECTED_FACTOR}`);
+  renderFactorDetail(+(selected || visible[0]).id.slice(7));
+}
+
+function wireSummaryRows(){
+  document.querySelectorAll('#summaryTable tbody tr').forEach(row=>{
+    row.addEventListener('click',e=>{
+      if(e.target.closest('a,button')) return;
+      renderFactorDetail(+row.id.slice(7));
+    });
+    row.addEventListener('keydown',e=>{
+      if(e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      renderFactorDetail(+row.id.slice(7));
+    });
+  });
+}
 (function(){
   document.addEventListener('click', e=>{
     if(e.target && (e.target.id==='xmodalClose' || e.target.id==='xmodal')) $('#xmodal').classList.add('hidden');
@@ -398,6 +490,7 @@ function applyGlanceFilters(){
     if(ok) n++;
   });
   const c=$('#glanceCount'); if(c) c.textContent=`showing ${n} of ${FACTORS.length}`;
+  if(Object.keys(SUMMARY_ITEMS).length) selectVisibleFactor();
 }
 function buildGlanceControls(){
   GLANCE={cat:'*', q:'', sort:'num'};

@@ -729,20 +729,24 @@ function goodFactors(liveResults, amen){
   return good.slice(0,4);
 }
 function renderInsights(st, R, census, amen, liveResults){
+  const gm = term => `https://www.google.com/maps/search/${encodeURIComponent(term + ' near ' + st.display)}`;
   const retail = amen ? amen.eat + amen.shop : null;
   const items = [
-    [amen ? retail : '—', 'Dining / retail', 38],
-    [amen ? amen.park : '—', 'Parks', 39],
-    [amen ? amen.transit + amen.station : '—', 'Transit points', 40],
-    [amen ? amen.health : '—', 'Healthcare', 42],
-    [amen ? amen.community : '—', 'Community places', 44],
-    [amen ? amen.constr : '—', 'Construction', 45]
+    [amen ? retail : 'Open', 'Dining / retail', 38, gm('restaurants and shops')],
+    [amen ? amen.park : 'Open', 'Parks', 39, gm('parks')],
+    [amen ? amen.transit + amen.station : 'Open', 'Transit points', 40, gm('transit stops')],
+    [amen ? amen.health : 'Open', 'Healthcare', 42, gm('hospitals clinics pharmacies')],
+    [amen ? amen.community : 'Open', 'Community places', 44, gm('community centers libraries')],
+    [amen ? amen.constr : 'Open', 'Construction', 45, gm('construction')]
   ];
   $('#neighborhoodSnapshot').innerHTML = `<div class="snapgrid">
-    ${items.map(([v,k,n])=>`<button type="button" class="${amen?'':'muted'}" data-snap-factor="${n}" aria-label="Open ${k} details"><b>${v}</b><span>${k}</span></button>`).join('')}
-  </div>${amen ? '' : '<p class="snapnote">Counts load from OpenStreetMap. If they are blank, retry the address or use the map links in each factor.</p>'}`;
+    ${items.map(([v,k,n,url])=>`<button type="button" class="${amen?'':'muted'}" data-snap-factor="${n}" data-map-url="${amen?'':url}" aria-label="${amen?'Open '+k+' details':'Open '+k+' in Google Maps'}"><b>${v}</b><span>${k}</span></button>`).join('')}
+  </div>${amen ? '' : '<p class="snapnote">Counts load from OpenStreetMap. Google Maps links are shown when counts are unavailable.</p>'}`;
   document.querySelectorAll('#neighborhoodSnapshot [data-snap-factor]').forEach(btn=>{
-    btn.addEventListener('click',()=>openFactorModal(+btn.dataset.snapFactor));
+    btn.addEventListener('click',()=>{
+      if(btn.dataset.mapUrl) window.open(btn.dataset.mapUrl, '_blank', 'noopener');
+      else openFactorModal(+btn.dataset.snapFactor);
+    });
   });
 }
 

@@ -17,6 +17,7 @@ async function fetchWithAbort(url, opts={}, ms=8000){
 
 let STATE = null; // {addr, lat, lon, zip, city, display}
 let map, marker;
+let ANALYZE_RUN = 0;
 
 function setStatus(html, cls=''){ const s=$('#status'); s.className='status '+cls; s.innerHTML=html; }
 
@@ -823,7 +824,7 @@ function renderEnvironment(env){
 function renderInsightLoading(){
   const snap = $('#neighborhoodSnapshot');
   const env = $('#environmentSnapshot');
-  if(snap) snap.innerHTML = '<p>Loading nearby amenities from OpenStreetMap...</p>';
+  if(snap) snap.innerHTML = '<p>Preparing neighborhood snapshot...</p>';
   if(env) env.innerHTML = '<p>Loading current air quality and weather...</p>';
 }
 
@@ -959,6 +960,7 @@ function buildMainMap(st){
 
 /* ---------- Main flow ---------- */
 async function analyze(){
+  const runId = ++ANALYZE_RUN;
   const q=$('#addr').value.trim();
   if(!q){ setStatus('Enter a California address.','err'); return; }
   $('#go').disabled=true; $('#pdf').disabled=true;
@@ -966,6 +968,7 @@ async function analyze(){
   let st;
   try{ st=await geocode(q); }
   catch(e){ setStatus(e.message,'err'); $('#go').disabled=false; return; }
+  if(runId !== ANALYZE_RUN) return;
   STATE=st;
   try{
   $('#comingsoon').classList.add('hidden');
@@ -985,6 +988,8 @@ async function analyze(){
   renderProfile(null, st);
   renderSummaryTable(st, liveResults);
   renderInsightLoading();
+  const instantAmen = cachedAmenityCounts(st) || emptyAmenityCounts();
+  renderInsights(st, null, null, instantAmen, liveResults);
 
   // live lookups in parallel (hazards + livability)
   const safe = (p, label) => p.catch(e => { console.warn(`${label} lookup failed`, e); return null; });
@@ -998,27 +1003,29 @@ async function analyze(){
     safe(withTimeout(overpassAmenities(st), 32000, 'OpenStreetMap amenities'), 'OpenStreetMap amenities'),
     safe(withTimeout(localEnvironment(st.lat, st.lon), 6500, 'Environment'), 'Environment')
   ]);
+  if(runId !== ANALYZE_RUN) return;
   renderProfile(census, st);
   if(flood){ liveResults[8]=flood; }
   if(liq){ liveResults[6]=liq; }
   if(lands){ liveResults[7]=lands; }
   if(fault){ liveResults[5]=fault; }
   if(fhsz){ liveResults[11]=fhsz; }
-  Object.assign(liveResults, livabilityResults(amen, census));
+  const finalAmen = amen || instantAmen;
+  Object.assign(liveResults, livabilityResults(finalAmen, census));
   if(census){ liveResults[1]={label:'No Risk', score:0, desc:`ZIP ${st.zip}: pop ${census.pop}, median income ${census.income}, median home ${census.home}, ${census.bachelors} bachelor's+.`}; }
 
   // summary view (table) + overall risk score
   renderSummaryTable(st, liveResults);
   STATE._live=liveResults;
   const R = renderOverall(liveResults);
-  renderInsights(st, R, census, amen, liveResults);
+  renderInsights(st, R, census, finalAmen, liveResults);
   renderEnvironment(env);
   const fmt = d => `${d.band} · ${d.score.toFixed(1)}/10`;
   const d = { health: fmt(R.dims.health), prop: fmt(R.dims.property), ins: fmt(R.dims.insurance) }; // used by the PDF cover
   $('#foot').innerHTML=`Generated ${new Date().toLocaleDateString()} · Geocoding & basemap © OpenStreetMap/Nominatim · Demographics: U.S. Census ACS · Flood: FEMA NFHL · Weather/Air: Open-Meteo. `
     +`Informational screening only — not a substitute for a professional inspection, geotechnical study, or insurance underwriting. Build ${(window.APP_CONFIG||{}).BUILD||'?'} `;
 
-  STATE._dims=d; STATE._census=census; STATE._amen=amen; STATE._env=env; STATE._risk=R;
+  STATE._dims=d; STATE._census=census; STATE._amen=finalAmen; STATE._env=env; STATE._risk=R;
   $('#pdf').disabled=false;
   setStatus(`<span class="ok">✓</span> Report ready — ${FACTORS.length} factors for ${st.display.split(',').slice(0,2).join(',')}`,'ok');
   }catch(e){ console.error(e); setStatus('Something went wrong rendering the report: '+(e.message||e),'err'); }

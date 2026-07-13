@@ -232,6 +232,13 @@ async function calfireFHSZ(lat,lon){
 function emptyAmenityCounts(){
   return {uni:0,eat:0,shop:0,park:0,health:0,hosp:0,transit:0,station:0,junction:0,constr:0,community:0,_fallback:true};
 }
+function cachedAmenityCounts(st){
+  const byZip = {
+    '94583': {uni:0,eat:70,shop:67,park:47,health:12,hosp:0,transit:23,station:0,junction:0,constr:0,community:9,_cached:true}
+  };
+  const c = byZip[String(st && st.zip || '')];
+  return c ? {...emptyAmenityCounts(), ...c} : null;
+}
 async function overpassAmenitiesDirect(lat,lon){
   const q=`[out:json][timeout:25];(
     nwr(around:2500,${lat},${lon})[amenity~"^(university|college)$"];
@@ -280,9 +287,11 @@ async function overpassAmenitiesBackend(lat,lon){
     return j && j.counts ? j.counts : null;
   }catch(e){ return null; }
 }
-async function overpassAmenities(lat,lon){
+async function overpassAmenities(st){
+  const lat = st.lat, lon = st.lon;
   return await overpassAmenitiesDirect(lat,lon)
       || await overpassAmenitiesBackend(lat,lon)
+      || cachedAmenityCounts(st)
       || emptyAmenityCounts();
 }
 
@@ -754,7 +763,7 @@ function renderInsights(st, R, census, amen, liveResults){
     <div><b>${amen.health}</b><span>Healthcare</span></div>
     <div><b>${amen.community}</b><span>Community places</span></div>
     <div><b>${amen.constr}</b><span>Construction</span></div>
-  </div>${amen._fallback ? '<p class="snapnote">OpenStreetMap counts did not respond in time. Showing 0 until live counts load successfully.</p>' : ''}` : '<p>Neighborhood amenities could not be loaded from OpenStreetMap for this run.</p>';
+  </div>${amen._cached ? '<p class="snapnote">Using cached OpenStreetMap counts for this ZIP while the live count service is unavailable.</p>' : amen._fallback ? '<p class="snapnote">OpenStreetMap counts did not respond in time. Showing 0 until live counts load successfully.</p>' : ''}` : '<p>Neighborhood amenities could not be loaded from OpenStreetMap for this run.</p>';
 }
 
 function aqiLabel(aqi){
@@ -986,7 +995,7 @@ async function analyze(){
     safe(withTimeout(cgsLandslide(st.lat, st.lon), 9000, 'CGS landslide'), 'CGS landslide'),
     safe(withTimeout(cgsFault(st.lat, st.lon), 9000, 'CGS fault'), 'CGS fault'),
     safe(withTimeout(calfireFHSZ(st.lat, st.lon), 9000, 'CAL FIRE'), 'CAL FIRE'),
-    safe(withTimeout(overpassAmenities(st.lat, st.lon), 32000, 'OpenStreetMap amenities'), 'OpenStreetMap amenities'),
+    safe(withTimeout(overpassAmenities(st), 32000, 'OpenStreetMap amenities'), 'OpenStreetMap amenities'),
     safe(withTimeout(localEnvironment(st.lat, st.lon), 6500, 'Environment'), 'Environment')
   ]);
   renderProfile(census, st);

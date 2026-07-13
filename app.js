@@ -1,9 +1,8 @@
 /* California Address Risk & Livability Report — front-end logic.
    Pure static: geocoding (Nominatim/OSM), live lookups (Census ACS, FEMA NFHL),
-   address-centered Esri basemap thumbnails, recentered map links, jsPDF export. */
+   address-centered map thumbnails, recentered map links, jsPDF export. */
 
 const RC = {no:'#5b7c99', low:'#2e8b57', mod:'#e08a00', high:'#c41e3a', pending:'#8593a6'};
-const ESRI = {street:'World_Street_Map', topo:'World_Topo_Map', imagery:'World_Imagery', gray:'Canvas/World_Light_Gray_Base'};
 const $ = s => document.querySelector(s);
 const withTimeout = (promise, ms, label='Request') => Promise.race([
   promise,
@@ -14,13 +13,6 @@ let STATE = null; // {addr, lat, lon, zip, city, display}
 let map, marker;
 
 function setStatus(html, cls=''){ const s=$('#status'); s.className='status '+cls; s.innerHTML=html; }
-
-function thumbUrl(lat, lon, basemap, w=660, h=320){
-  const dLat = 0.014, dLon = 0.014/Math.cos(lat*Math.PI/180);
-  const bbox = [lon-dLon, lat-dLat, lon+dLon, lat+dLat].join(',');
-  return `https://services.arcgisonline.com/arcgis/rest/services/${ESRI[basemap]||ESRI.street}/MapServer/export`
-       + `?bbox=${bbox}&bboxSR=4326&size=${w},${h}&format=png&transparent=false&f=image`;
-}
 
 function fill(tmpl, st){
   return tmpl
@@ -903,16 +895,8 @@ const MAP_OVERLAYS = [
 function buildMainMap(st){
   if(map){ try{ map.remove(); }catch(e){} map=null; }
   map = L.map('map', { scrollWheelZoom:true }).setView([st.lat, st.lon], 13);
-  const esriAttr = 'Tiles \u00a9 Esri';
-  const basemaps = {
-    'Esri Streets': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:esriAttr}),
-    'Esri Topographic': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:esriAttr}),
-    'Esri Light Gray': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:esriAttr}),
-    'Esri Navigation': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Specialty/World_Navigation_Charts/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:esriAttr}),
-    'Esri Imagery': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:esriAttr}),
-    'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'\u00a9 OpenStreetMap'})
-  };
-  basemaps['Esri Topographic'].addTo(map);
+  const baseName = 'OpenStreetMap';
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'\u00a9 OpenStreetMap'}).addTo(map);
   const overlays = {};
   const layerState = {};
   const activeLayers = new Set();
@@ -920,7 +904,6 @@ function buildMainMap(st){
     const el=document.getElementById('layerStatus'); if(!el) return;
     const bad=Object.entries(layerState).filter(([,v])=>v===false).map(([k])=>k);
     const active = [...activeLayers];
-    const baseName = Object.entries(basemaps).find(([,layer])=>map.hasLayer(layer))?.[0] || 'Basemap';
     const activeHtml = active.length ? `<div><b>Active map layers:</b> ${baseName} · ${active.join(' · ')}</div>` : `<div><b>Active map layers:</b> ${baseName} only</div>`;
     const badHtml = bad.length
       ? `<div>⚠ Couldn't load from the agency server: <b>${bad.join('</b> · <b>')}</b> — re-toggle the layer or try again shortly.</div>`
@@ -947,8 +930,8 @@ function buildMainMap(st){
       if(o.on){ activeLayers.add(o.name); layer.addTo(map); }
     });
   }
-  L.control.layers(basemaps, overlays, {collapsed:false, position:'topright'}).addTo(map);
-  map.on('baselayerchange overlayadd overlayremove', refreshLayerStatus);
+  L.control.layers(null, overlays, {collapsed:false, position:'topright'}).addTo(map);
+  map.on('overlayadd overlayremove', refreshLayerStatus);
   L.control.scale({imperial:true}).addTo(map);
   marker = L.marker([st.lat, st.lon]).addTo(map).bindPopup(st.display).openPopup();
   refreshLayerStatus();
@@ -1012,7 +995,7 @@ async function analyze(){
   renderEnvironment(env);
   const fmt = d => `${d.band} · ${d.score.toFixed(1)}/10`;
   const d = { health: fmt(R.dims.health), prop: fmt(R.dims.property), ins: fmt(R.dims.insurance) }; // used by the PDF cover
-  $('#foot').innerHTML=`Generated ${new Date().toLocaleDateString()} · Geocoding © OpenStreetMap/Nominatim · Demographics: U.S. Census ACS · Flood: FEMA NFHL · Weather/Air: Open-Meteo · Basemaps © Esri. `
+  $('#foot').innerHTML=`Generated ${new Date().toLocaleDateString()} · Geocoding & basemap © OpenStreetMap/Nominatim · Demographics: U.S. Census ACS · Flood: FEMA NFHL · Weather/Air: Open-Meteo. `
     +`Informational screening only — not a substitute for a professional inspection, geotechnical study, or insurance underwriting. Build ${(window.APP_CONFIG||{}).BUILD||'?'} `;
 
   STATE._dims=d; STATE._census=census; STATE._amen=amen; STATE._env=env; STATE._risk=R;
@@ -1049,11 +1032,6 @@ async function makePDF(){
   const reportRisk = STATE._risk || computeRisk(live);
   const build = (window.APP_CONFIG||{}).BUILD || '?';
 
-  const imgs={};
-  await loadImgWithTimeout(thumbUrl(STATE.lat,STATE.lon,'topo',680,300), 7000)
-    .then(i=>imgs.cover=i)
-    .catch(()=>{});
-
   /* ---- Cover ---- */
   doc.setFillColor(20,28,46); doc.rect(0,0,W,168,'F');
   doc.setTextColor(157,180,214); doc.setFontSize(9); doc.setFont('helvetica','bold');
@@ -1077,14 +1055,14 @@ async function makePDF(){
   if(c){ doc.setFillColor(247,249,252); doc.setDrawColor(226,231,238); doc.roundedRect(M,y,CW,30,6,6,'FD');
     doc.setTextColor(60,72,90); doc.setFontSize(9.5);
     doc.text(`Population (ZIP): ${c.pop}      Median income: ${c.income}      Median home: ${c.home}      Bachelor's+: ${c.bachelors}`, M+10, y+19); y+=42; }
-  if(imgs.cover){ const ih=(CW)*300/680;
-    try{
-      doc.addImage(imgs.cover,'PNG',M,y,CW,ih);
-      doc.setDrawColor(196,30,58); doc.setLineWidth(2); doc.rect(M,y,CW,ih); doc.setLineWidth(1); y+=ih+6;
-    }catch(e){}
-  }
+  doc.setFillColor(247,249,252); doc.setDrawColor(226,231,238); doc.roundedRect(M,y,CW,88,7,7,'FD');
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(90,107,128);
+  doc.text('OPENSTREETMAP LIVE MAP', M+14, y+20);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(43,57,77);
+  doc.text(doc.splitTextToSize(`Centered at ${(+STATE.lat).toFixed(5)}, ${(+STATE.lon).toFixed(5)} with FEMA flood, CGS seismic, and CAL FIRE overlays available in the interactive report.`, CW-28), M+14, y+42);
+  y+=100;
   doc.setFontSize(8); doc.setTextColor(133,147,166);
-  doc.text('Map snapshot uses the current Esri topographic basemap. Live map layers include FEMA flood, CGS seismic hazards, and CAL FIRE fire severity when available.', M, y+4);
+  doc.text('Live map uses OpenStreetMap as the only basemap. Overlay layers include FEMA flood, CGS seismic hazards, and CAL FIRE fire severity when available.', M, y+4);
 
   /* ---- Latest interactive snapshot ---- */
   doc.addPage(); y=M+6;
@@ -1122,7 +1100,7 @@ async function makePDF(){
   para(envText, M+half+24, y+38, half-24, 9.5);
   y+=124;
   box(M,y,CW,74,'Active map layers');
-  para('Esri Topographic basemap; FEMA Flood Zones; Liquefaction Zones (CGS); Landslide Zones (CGS); Earthquake Fault Lines (CGS); Fire Hazard Severity (CAL FIRE).', M+12, y+38, CW-24, 9.5);
+  para('OpenStreetMap basemap; FEMA Flood Zones; Liquefaction Zones (CGS); Landslide Zones (CGS); Earthquake Fault Lines (CGS); Fire Hazard Severity (CAL FIRE).', M+12, y+38, CW-24, 9.5);
   y+=92;
   box(M,y,CW,88,'How to read this');
   para('Each factor is scored 0-10 and grouped as 0 = No, 1-4 = Low, 5-7 = Moderate, 8-10 = High. Ratings use live public-agency data where an API exists; other factors show typical impact and an agency map link recentered on the address.', M+12, y+38, CW-24, 9.5);
@@ -1186,7 +1164,7 @@ async function makePDF(){
   /* ---- footer ---- */
   if(y>H-60){ doc.addPage(); y=M; }
   doc.setTextColor(133,147,166); doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text(doc.splitTextToSize('Informational screening from public data (U.S. Census, FEMA NFHL, Esri, OpenStreetMap and each factor’s agency map). Not a substitute for a professional inspection, geotechnical study, title report, or insurance underwriting.',CW), M, H-44);
+  doc.text(doc.splitTextToSize('Informational screening from public data (U.S. Census, FEMA NFHL, OpenStreetMap and each factor’s agency map). Not a substitute for a professional inspection, geotechnical study, title report, or insurance underwriting.',CW), M, H-44);
 
   const safe=(STATE.zip||'address')+'_'+(STATE.display.split(',')[0].replace(/[^a-z0-9]+/gi,'_'));
   doc.save(`CA_Risk_Report_${safe}.pdf`);

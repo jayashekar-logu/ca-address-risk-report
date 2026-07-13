@@ -66,7 +66,7 @@ factors keep working via their existing "Open live map" links).
 | `config.js` | Optional Census API key |
 
 ## Data sources
-OpenStreetMap/Nominatim (geocoding) · U.S. Census ACS (demographics) · FEMA NFHL (flood) · Esri (basemap thumbnails) · plus each factor's authoritative agency map (CA Geological Survey, CAL FIRE, PHMSA, EPA/CalEPA, CalGEM, DWR, DOT, and others).
+OpenStreetMap/Nominatim (geocoding and basemap) · U.S. Census ACS (demographics) · FEMA NFHL (flood) · plus each factor's authoritative agency map (CA Geological Survey, CAL FIRE, PHMSA, EPA/CalEPA, CalGEM, DWR, DOT, and others).
 
 ## Extending the automatic lookups
 To make another factor auto-rate, add a `live:'key'` to it in `factors.js`, write an async lookup in `app.js` that returns `{label, score, desc}`, and call it in the `Promise.all` block inside `analyze()`. Good candidates with public point-query services: CAL FIRE FHSZ, USGS faults, CalGEM wells.

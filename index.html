@@ -32,7 +32,7 @@
       <button class="btn ghost" id="pdf" disabled>↓ PDF</button>
     </div>
     <div class="status" id="status"></div>
-    <div class="trust">45 factors · FEMA · CAL FIRE · CGS · U.S. Census · OpenStreetMap · CalEPA · Esri<span id="buildTag" class="buildtag"></span></div>
+    <div class="trust">45 factors · FEMA · CAL FIRE · CGS · U.S. Census · OpenStreetMap · CalEPA<span id="buildTag" class="buildtag"></span></div>
   </div>
 </header>
 
@@ -51,7 +51,7 @@
       <div class="summary-grid hero-grid">
         <div class="mapcol">
           <div id="map"></div>
-          <div class="map-hint">Live hazard map — switch Esri basemaps (topographic, streets, light gray, navigation, imagery), toggle FEMA flood / CGS seismic / CAL FIRE layers, pan &amp; zoom. <b>Tip:</b> several agency layers only draw at neighborhood zoom — if a checked layer looks empty, zoom in.</div>
+          <div class="map-hint">Live hazard map — OpenStreetMap basemap with FEMA flood / CGS seismic / CAL FIRE layers, pan &amp; zoom. <b>Tip:</b> several agency layers only draw at neighborhood zoom — if a checked layer looks empty, zoom in.</div>
           <div id="layerStatus" class="layer-status"></div>
         </div>
         <div class="riskcol">
@@ -145,10 +145,10 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="config.js?v=17"></script>
+<script src="config.js?v=18"></script>
 <script src="factors.js?v=8"></script>
 <script src="explanations.js?v=7"></script>
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 <div id="xmodal" class="xmodal hidden" role="dialog" aria-modal="true">
   <div class="xmodal-card">
     <div class="xmodal-head"><h3 id="xmodalTitle"></h3><button id="xmodalClose" aria-label="Close">×</button></div>

@@ -30,9 +30,53 @@ function fill(tmpl, st){
 }
 
 /* ---------- Geocoding (CA-only) ---------- */
+function tidyAddressQuery(q){
+  return q
+    .replace(/\bmountainview\b/ig, 'Mountain View')
+    .replace(/\bfederick\b/ig, 'Frederick')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function typedHouseNumber(q){
+  const m = String(q || '').trim().match(/^(\d+[A-Za-z]?)/);
+  return m ? m[1].toLowerCase() : '';
+}
+function titleCase(s){
+  return String(s || '').toLowerCase().replace(/\b[a-z]/g, c=>c.toUpperCase());
+}
+function requireTypedHouseNumber(q, found){
+  const typed = typedHouseNumber(q);
+  if(!typed) return;
+  const got = String(found || '').trim().match(/^(\d+[A-Za-z]?)/);
+  if(!got || got[1].toLowerCase() !== typed){
+    throw new Error(`Exact house-number match not found for "${q}". Please include street, city, and ZIP if available.`);
+  }
+}
+async function censusGeocode(q){
+  const query = tidyAddressQuery(q);
+  const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress`
+    + `?address=${encodeURIComponent(query)}&benchmark=Public_AR_Current&format=json`;
+  const res = await fetch(url, {headers:{'Accept':'application/json'}});
+  if(!res.ok) throw new Error('Census geocoder returned '+res.status);
+  const j = await res.json();
+  const match = ((j.result||{}).addressMatches||[])[0];
+  if(!match) throw new Error('Address not found. Try a fuller street address with ZIP.');
+  requireTypedHouseNumber(q, match.matchedAddress);
+  const c = match.addressComponents || {};
+  if((c.state || '').toUpperCase() !== 'CA') throw new Error(`That address resolves to ${c.state||'outside California'}. This tool is California-only.`);
+  const city = titleCase(c.city);
+  const street = titleCase(match.matchedAddress.split(',')[0] || '');
+  return {
+    lat:+match.coordinates.y, lon:+match.coordinates.x,
+    zip:c.zip || '',
+    city,
+    county:'',
+    display:[street, city, 'California', c.zip].filter(Boolean).join(', ')
+  };
+}
 async function nominatimGeocode(q){
   const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1`
-            + `&countrycodes=us&limit=1&q=${encodeURIComponent(q)}`;
+            + `&countrycodes=us&limit=5&q=${encodeURIComponent(tidyAddressQuery(q))}`;
   let data;
   try{
     const res = await fetch(url, {headers:{'Accept':'application/json'}});
@@ -40,9 +84,15 @@ async function nominatimGeocode(q){
     data = await res.json();
   }catch(e){ throw new Error('Network error contacting geocoder. '+(e.message||'')); }
   if(!data || !data.length) throw new Error('Address not found. Try a fuller street address.');
-  const r = data[0]; const a = r.address||{};
+  const typed = typedHouseNumber(q);
+  const r = typed
+    ? data.find(x=>((x.address||{}).house_number || '').toLowerCase() === typed)
+    : data[0];
+  if(!r) throw new Error(`Exact house-number match not found for "${q}". Please include street, city, and ZIP if available.`);
+  const a = r.address||{};
   const state = a.state || '';
   if(state !== 'California') throw new Error(`That address resolves to ${state||'outside California'}. This tool is California-only.`);
+  requireTypedHouseNumber(q, [a.house_number, a.road].filter(Boolean).join(' '));
   return {
     lat:+r.lat, lon:+r.lon,
     zip:a.postcode || '',
@@ -52,25 +102,38 @@ async function nominatimGeocode(q){
   };
 }
 async function photonGeocode(q){
-  const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=en`);
+  const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(tidyAddressQuery(q))}&limit=6&lang=en`);
   if(!r.ok) throw new Error('Geocoder returned '+r.status);
-  const j = await r.json(); const f=(j.features||[])[0];
+  const j = await r.json();
+  const typed = typedHouseNumber(q);
+  const f = typed
+    ? (j.features||[]).find(x=>String((x.properties||{}).housenumber || '').toLowerCase() === typed)
+    : (j.features||[])[0];
   if(!f) throw new Error('Address not found. Try a fuller street address.');
   const p=f.properties||{};
   if(p.state!=='California') throw new Error(`That address resolves to ${p.state||'outside California'}. This tool is California-only.`);
   const line1=[p.housenumber,p.street].filter(Boolean).join(' ')||p.name||'';
+  requireTypedHouseNumber(q, line1);
   return { lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0],
     zip:p.postcode||'', city:p.city||p.town||p.village||p.county||'', county:p.county||'',
     display:[line1, p.city||p.town||p.village, 'California', p.postcode].filter(Boolean).join(', ') };
 }
 
-/* Nominatim first (best formatting), Photon fallback (Nominatim rate-limits
-   bursts and forbids autocomplete, so repeat searches can get throttled). */
+/* Census first for exact U.S. house-number matches, then OSM-based fallbacks.
+   If the user typed a house number, fallbacks must keep that same number. */
 async function geocode(q){
-  try{ return await nominatimGeocode(q); }
+  try{ return await censusGeocode(q); }
   catch(e){
-    try{ return await photonGeocode(q); }
-    catch(e2){ throw (e2.message && e2.message.includes('California-only')) ? e2 : e; }
+    try{ return await nominatimGeocode(q); }
+    catch(e2){
+      try{ return await photonGeocode(q); }
+      catch(e3){
+        const msgs = [e3.message, e2.message, e.message].filter(Boolean);
+        const exact = msgs.find(m=>m.includes('Exact house-number match'));
+        if(exact) throw new Error(exact);
+        throw (e3.message && e3.message.includes('California-only')) ? e3 : e;
+      }
+    }
   }
 }
 

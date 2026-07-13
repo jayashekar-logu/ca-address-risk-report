@@ -734,7 +734,8 @@ function buildMainMap(st){
     const el=document.getElementById('layerStatus'); if(!el) return;
     const bad=Object.entries(layerState).filter(([,v])=>v===false).map(([k])=>k);
     const active = [...activeLayers];
-    const activeHtml = active.length ? `<div><b>Active map layers:</b> ${active.join(' · ')}</div>` : '<div><b>Active map layers:</b> Streets only</div>';
+    const baseName = map.hasLayer(imagery) ? 'Imagery' : 'Streets';
+    const activeHtml = active.length ? `<div><b>Active map layers:</b> ${baseName} · ${active.join(' · ')}</div>` : `<div><b>Active map layers:</b> ${baseName} only</div>`;
     const badHtml = bad.length
       ? `<div>⚠ Couldn't load from the agency server: <b>${bad.join('</b> · <b>')}</b> — re-toggle the layer or try again shortly.</div>`
       : '';
@@ -758,6 +759,7 @@ function buildMainMap(st){
     });
   }
   L.control.layers({ 'Streets':streets, 'Imagery':imagery }, overlays, {collapsed:false, position:'topright'}).addTo(map);
+  map.on('baselayerchange overlayadd overlayremove', refreshLayerStatus);
   const resetCtl = L.control({position:'topleft'});
   resetCtl.onAdd = function(){
     const div = L.DomUtil.create('button','map-reset');
@@ -845,7 +847,6 @@ async function analyze(){
     +`Informational screening only — not a substitute for a professional inspection, geotechnical study, or insurance underwriting. Build ${(window.APP_CONFIG||{}).BUILD||'?'} `;
 
   STATE._dims=d; STATE._census=census;
-  updateMapRisk(st);
   $('#pdf').disabled=false;
   setStatus(`<span class="ok">✓</span> Report ready — ${FACTORS.length} factors for ${st.display.split(',').slice(0,2).join(',')}`,'ok');
   }catch(e){ console.error(e); setStatus('Something went wrong rendering the report: '+(e.message||e),'err'); }

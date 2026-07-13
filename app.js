@@ -293,10 +293,9 @@ function renderSummaryTable(st, liveResults){
   const whatCell = (f, what) => {
     const imgs = (window.FACTOR_EXPLAIN||{})[f.n]||[];
     if(!imgs.length) return what;
-    const summary = imgs.map((s,i)=>`<img src="${s}" loading="lazy" alt="${f.name} explanation ${i+1}"/>`).join('');
     return `${what}
       <button class="impact-link" type="button" data-n="${f.n}" aria-expanded="false" aria-controls="explain-${f.n}">Read more</button>
-      <div class="inline-explain hidden" id="explain-${f.n}">${summary}</div>`;
+      <div class="inline-explain hidden" id="explain-${f.n}" data-name="${f.name}" data-srcs="${imgs.join('|')}"></div>`;
   };
   const rows = FACTORS.map(f=>{
     const live=liveResults[f.n]; const rk=riskKey(live&&live.label);
@@ -364,6 +363,12 @@ function wireImpactLinks(){
     const panel = document.getElementById(`explain-${btn.dataset.n}`);
     if(!panel) return;
     const isOpen = !panel.classList.contains('hidden');
+    if(!isOpen && !panel.dataset.loaded){
+      const name = panel.dataset.name || 'Factor';
+      const srcs = (panel.dataset.srcs || '').split('|').filter(Boolean);
+      panel.innerHTML = srcs.map((s,i)=>`<img src="${s}" loading="lazy" alt="${name} explanation ${i+1}"/>`).join('');
+      panel.dataset.loaded = 'true';
+    }
     panel.classList.toggle('hidden', isOpen);
     btn.setAttribute('aria-expanded', String(!isOpen));
     btn.textContent = isOpen ? 'Read more' : 'Show less';

@@ -224,39 +224,29 @@ async function calfireFHSZ(lat,lon){
 
 /* ---------- Live livability lookups (OpenStreetMap Overpass) ---------- */
 async function overpassAmenities(lat,lon){
-  const q=`[out:json][timeout:25];(
-    nwr(around:2500,${lat},${lon})[amenity~"^(university|college)$"];
-    nwr(around:1500,${lat},${lon})[amenity~"^(restaurant|cafe|fast_food)$"];
-    nwr(around:1500,${lat},${lon})[shop];
-    nwr(around:1500,${lat},${lon})[leisure~"^(park|playground|pitch|garden)$"];
-    nwr(around:2000,${lat},${lon})[amenity~"^(hospital|clinic|doctors|pharmacy)$"];
-    nwr(around:1200,${lat},${lon})[highway=bus_stop];
-    nwr(around:1200,${lat},${lon})[public_transport=platform];
-    nwr(around:3000,${lat},${lon})[railway=station];
-    nwr(around:4000,${lat},${lon})[highway=motorway_junction];
-    nwr(around:1500,${lat},${lon})[landuse=construction];
-    nwr(around:1500,${lat},${lon})[building=construction];
-    nwr(around:1500,${lat},${lon})[amenity~"^(library|community_centre|place_of_worship)$"];
-  );out tags qt 600;`;
+  const q=`[out:json][timeout:18];
+    (nwr(around:2500,${lat},${lon})[amenity~"^(university|college)$"];)->.uni; .uni out count;
+    (nwr(around:1500,${lat},${lon})[amenity~"^(restaurant|cafe|fast_food)$"];)->.eat; .eat out count;
+    (nwr(around:1500,${lat},${lon})[shop];)->.shop; .shop out count;
+    (nwr(around:1500,${lat},${lon})[leisure~"^(park|playground|pitch|garden)$"];)->.park; .park out count;
+    (nwr(around:2000,${lat},${lon})[amenity~"^(hospital|clinic|doctors|pharmacy)$"];)->.health; .health out count;
+    (nwr(around:2000,${lat},${lon})[amenity=hospital];)->.hosp; .hosp out count;
+    (nwr(around:1200,${lat},${lon})[highway=bus_stop]; nwr(around:1200,${lat},${lon})[public_transport=platform];)->.transit; .transit out count;
+    (nwr(around:3000,${lat},${lon})[railway=station];)->.station; .station out count;
+    (nwr(around:4000,${lat},${lon})[highway=motorway_junction];)->.junction; .junction out count;
+    (nwr(around:1500,${lat},${lon})[landuse=construction]; nwr(around:1500,${lat},${lon})[building=construction];)->.constr; .constr out count;
+    (nwr(around:1500,${lat},${lon})[amenity~"^(library|community_centre|place_of_worship)$"];)->.community; .community out count;`;
   const endpoints = [
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
     'https://overpass.openstreetmap.ru/api/interpreter'
   ];
   const parse = j => {
-    const c={uni:0,eat:0,shop:0,park:0,health:0,hosp:0,transit:0,station:0,junction:0,constr:0,community:0};
-    (j.elements||[]).forEach(e=>{const t=e.tags||{};
-      if(/^(university|college)$/.test(t.amenity||'')) c.uni++;
-      else if(/^(restaurant|cafe|fast_food)$/.test(t.amenity||'')) c.eat++;
-      else if(t.shop) c.shop++;
-      else if(/^(park|playground|pitch|garden)$/.test(t.leisure||'')) c.park++;
-      else if((t.amenity||'')==='hospital'){c.hosp++;c.health++;}
-      else if(/^(clinic|doctors|pharmacy)$/.test(t.amenity||'')) c.health++;
-      else if(t.highway==='bus_stop'||t.public_transport==='platform') c.transit++;
-      else if(t.railway==='station') c.station++;
-      else if(t.highway==='motorway_junction') c.junction++;
-      else if(t.landuse==='construction'||t.building==='construction') c.constr++;
-      else if(/^(library|community_centre|place_of_worship)$/.test(t.amenity||'')) c.community++;
+    const keys = ['uni','eat','shop','park','health','hosp','transit','station','junction','constr','community'];
+    const c = Object.fromEntries(keys.map(k=>[k,0]));
+    (j.elements||[]).forEach((e,i)=>{
+      const key = keys[i];
+      if(key) c[key] = +(e.tags && e.tags.total) || 0;
     });
     return c;
   };
@@ -991,7 +981,7 @@ async function analyze(){
     safe(withTimeout(cgsLandslide(st.lat, st.lon), 9000, 'CGS landslide'), 'CGS landslide'),
     safe(withTimeout(cgsFault(st.lat, st.lon), 9000, 'CGS fault'), 'CGS fault'),
     safe(withTimeout(calfireFHSZ(st.lat, st.lon), 9000, 'CAL FIRE'), 'CAL FIRE'),
-    safe(withTimeout(overpassAmenities(st.lat, st.lon), 7000, 'OpenStreetMap amenities'), 'OpenStreetMap amenities'),
+    safe(withTimeout(overpassAmenities(st.lat, st.lon), 12000, 'OpenStreetMap amenities'), 'OpenStreetMap amenities'),
     safe(withTimeout(localEnvironment(st.lat, st.lon), 6500, 'Environment'), 'Environment')
   ]);
   renderProfile(census, st);

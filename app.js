@@ -780,10 +780,10 @@ function updateMapRisk(st){
 const MAP_OVERLAYS = [
   { name:'FEMA Flood Zones',              type:'dynamic', on:true,
     url:'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer', layers:[28], opacity:.45 },
-  { name:'Liquefaction Zones (CGS)',      type:'tiled',
-    url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Liquefaction_Zones/MapServer', opacity:.55 },
-  { name:'Landslide Zones (CGS)',         type:'tiled',
-    url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Landslide_Zones/MapServer', opacity:.55 },
+  { name:'Liquefaction Zones (CGS)',      type:'dynamic',
+    url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Liquefaction_Zones/MapServer', layers:[0], opacity:.55 },
+  { name:'Landslide Zones (CGS)',         type:'dynamic',
+    url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Landslide_Zones/MapServer', layers:[0], opacity:.55 },
   { name:'Earthquake Fault Zones (CGS)',  type:'feature',
     url:'https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Fault_Zones/FeatureServer/0',
     style:{ color:'#c41e3a', weight:2, fillOpacity:.15 } },
@@ -831,12 +831,10 @@ function buildMainMap(st){
       try{
         if(o.type==='feature'){
           layer = L.esri.featureLayer({url:o.url, style:()=>o.style||{}});
-        }else if(o.type==='tiled'){
-          layer = L.esri.tiledMapLayer({url:o.url, opacity:o.opacity ?? .5});
         }else{
           layer = L.esri.dynamicMapLayer({url:o.url, opacity:o.opacity ?? .5, layers:o.layers, format:'png32'});
         }
-      }catch(e){ return; }
+      }catch(e){ layerState[o.name]=false; refreshLayerStatus(); return; }
       layer.on('requesterror', ()=>{ layerState[o.name]=false; refreshLayerStatus(); });
       layer.on('load', ()=>{ layerState[o.name]=true; refreshLayerStatus(); });
       layer.on('add', ()=>{ activeLayers.add(o.name); refreshLayerStatus(); });

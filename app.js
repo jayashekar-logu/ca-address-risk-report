@@ -815,15 +815,10 @@ function buildMainMap(st){
   };
   const setToolbarActive = () => {
     if(!toolbar) return;
-    toolbar.querySelectorAll('[data-layer-name]').forEach(btn=>{
-      btn.classList.toggle('active', activeLayers.has(btn.dataset.layerName));
-    });
     toolbar.querySelectorAll('[data-map-preset]').forEach(btn=>{
       const names = PRESETS[btn.dataset.mapPreset] || [];
       btn.classList.toggle('active', names.length && names.every(name=>activeLayers.has(name)));
     });
-    toolbar.querySelector('[data-map-action="streets"]')?.classList.toggle('active', map.hasLayer(streets));
-    toolbar.querySelector('[data-map-action="imagery"]')?.classList.toggle('active', map.hasLayer(imagery));
   };
   function refreshLayerStatus(){
     const el=document.getElementById('layerStatus'); if(!el) return;
@@ -859,17 +854,6 @@ function buildMainMap(st){
   }
   L.control.layers({ 'Streets':streets, 'Imagery':imagery }, overlays, {collapsed:false, position:'topright'}).addTo(map);
   map.on('baselayerchange overlayadd overlayremove', refreshLayerStatus);
-  const resetCtl = L.control({position:'topleft'});
-  resetCtl.onAdd = function(){
-    const div = L.DomUtil.create('button','map-reset');
-    div.type = 'button';
-    div.textContent = 'Center';
-    div.title = 'Recenter on this address';
-    L.DomEvent.disableClickPropagation(div);
-    div.addEventListener('click',()=>{ map.setView([st.lat, st.lon], 14); marker.openPopup(); });
-    return div;
-  };
-  resetCtl.addTo(map);
   L.control.scale({imperial:true}).addTo(map);
   marker = L.marker([st.lat, st.lon]).addTo(map).bindPopup(st.display).openPopup();
   if(toolbar){
@@ -878,19 +862,10 @@ function buildMainMap(st){
       if(!btn) return;
       const action = btn.dataset.mapAction;
       const preset = btn.dataset.mapPreset;
-      const layerName = btn.dataset.layerName;
-      if(action==='center'){ map.setView([st.lat, st.lon], 14); marker.openPopup(); }
-      if(action==='zoom-in') map.zoomIn();
-      if(action==='zoom-out') map.zoomOut();
-      if(action==='streets'){ if(map.hasLayer(imagery)) map.removeLayer(imagery); if(!map.hasLayer(streets)) streets.addTo(map); }
-      if(action==='imagery'){ if(map.hasLayer(streets)) map.removeLayer(streets); if(!map.hasLayer(imagery)) imagery.addTo(map); }
       if(action==='clear-layers') Object.values(overlays).forEach(layer=>{ if(map.hasLayer(layer)) map.removeLayer(layer); });
       if(preset && PRESETS[preset]){
         Object.values(overlays).forEach(layer=>{ if(map.hasLayer(layer)) map.removeLayer(layer); });
         PRESETS[preset].forEach(name=>{ if(overlays[name] && !map.hasLayer(overlays[name])) overlays[name].addTo(map); });
-      }
-      if(layerName && overlays[layerName]){
-        map.hasLayer(overlays[layerName]) ? map.removeLayer(overlays[layerName]) : overlays[layerName].addTo(map);
       }
       refreshLayerStatus();
     };

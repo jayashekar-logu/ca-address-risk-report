@@ -841,9 +841,13 @@ function buildMainMap(st){
     MAP_OVERLAYS.forEach(o=>{
       let layer=null;
       try{
-        layer = o.type==='feature'
-          ? L.esri.featureLayer({url:o.url, style:()=>o.style||{}})
-          : L.esri.dynamicMapLayer({url:o.url, opacity:o.opacity ?? .5, layers:o.layers, format:'png32'});
+        if(o.type==='feature'){
+          layer = L.esri.featureLayer({url:o.url, style:()=>o.style||{}});
+        }else if(o.type==='tiled'){
+          layer = L.esri.tiledMapLayer({url:o.url, opacity:o.opacity ?? .5});
+        }else{
+          layer = L.esri.dynamicMapLayer({url:o.url, opacity:o.opacity ?? .5, layers:o.layers, format:'png32'});
+        }
       }catch(e){ return; }
       layer.on('requesterror', ()=>{ layerState[o.name]=false; refreshLayerStatus(); });
       layer.on('load', ()=>{ layerState[o.name]=true; refreshLayerStatus(); });

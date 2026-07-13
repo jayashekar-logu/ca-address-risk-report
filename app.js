@@ -8,6 +8,12 @@ const withTimeout = (promise, ms, label='Request') => Promise.race([
   promise,
   new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out`)), ms))
 ]);
+async function fetchWithAbort(url, opts={}, ms=8000){
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), ms);
+  try{ return await fetch(url, {...opts, signal:ctrl.signal}); }
+  finally{ clearTimeout(timer); }
+}
 
 let STATE = null; // {addr, lat, lon, zip, city, display}
 let map, marker;
@@ -252,7 +258,11 @@ async function overpassAmenities(lat,lon){
   };
   for(const endpoint of endpoints){
     try{
-      const res=await fetch(endpoint,{method:'POST',body:q});
+      const res=await fetchWithAbort(endpoint,{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+        body:`data=${encodeURIComponent(q)}`
+      }, 6500);
       if(!res.ok) continue;
       return parse(await res.json());
     }catch(e){}
@@ -981,7 +991,7 @@ async function analyze(){
     safe(withTimeout(cgsLandslide(st.lat, st.lon), 9000, 'CGS landslide'), 'CGS landslide'),
     safe(withTimeout(cgsFault(st.lat, st.lon), 9000, 'CGS fault'), 'CGS fault'),
     safe(withTimeout(calfireFHSZ(st.lat, st.lon), 9000, 'CAL FIRE'), 'CAL FIRE'),
-    safe(withTimeout(overpassAmenities(st.lat, st.lon), 12000, 'OpenStreetMap amenities'), 'OpenStreetMap amenities'),
+    safe(withTimeout(overpassAmenities(st.lat, st.lon), 15000, 'OpenStreetMap amenities'), 'OpenStreetMap amenities'),
     safe(withTimeout(localEnvironment(st.lat, st.lon), 6500, 'Environment'), 'Environment')
   ]);
   renderProfile(census, st);

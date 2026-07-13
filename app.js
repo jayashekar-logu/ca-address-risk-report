@@ -236,17 +236,12 @@ async function overpassAmenities(lat,lon){
     'https://overpass.openstreetmap.ru/api/interpreter'
   ];
   const queries = {
-    uni:`nwr(around:2500,${lat},${lon})[amenity~"^(university|college)$"];`,
-    eat:`nwr(around:1500,${lat},${lon})[amenity~"^(restaurant|cafe|fast_food)$"];`,
-    shop:`nwr(around:1500,${lat},${lon})[shop];`,
+    retail:`nwr(around:1500,${lat},${lon})[amenity~"^(restaurant|cafe|fast_food)$"];nwr(around:1500,${lat},${lon})[shop];`,
     park:`nwr(around:1500,${lat},${lon})[leisure~"^(park|playground|pitch|garden)$"];`,
+    walk:`nwr(around:1200,${lat},${lon})[highway=bus_stop];nwr(around:1200,${lat},${lon})[public_transport=platform];nwr(around:3000,${lat},${lon})[railway=station];`,
     health:`nwr(around:2000,${lat},${lon})[amenity~"^(hospital|clinic|doctors|pharmacy)$"];`,
-    hosp:`nwr(around:2000,${lat},${lon})[amenity=hospital];`,
-    transit:`nwr(around:1200,${lat},${lon})[highway=bus_stop];nwr(around:1200,${lat},${lon})[public_transport=platform];`,
-    station:`nwr(around:3000,${lat},${lon})[railway=station];`,
-    junction:`nwr(around:4000,${lat},${lon})[highway=motorway_junction];`,
-    constr:`nwr(around:1500,${lat},${lon})[landuse=construction];nwr(around:1500,${lat},${lon})[building=construction];`,
-    community:`nwr(around:1500,${lat},${lon})[amenity~"^(library|community_centre|place_of_worship)$"];`
+    community:`nwr(around:1500,${lat},${lon})[amenity~"^(library|community_centre|place_of_worship)$"];`,
+    constr:`nwr(around:1500,${lat},${lon})[landuse=construction];nwr(around:1500,${lat},${lon})[building=construction];`
   };
   const countOne = async (endpoint, expr) => {
     const q = `[out:json][timeout:10];(${expr});out count;`;
@@ -266,6 +261,7 @@ async function overpassAmenities(lat,lon){
       if(!entries.length) throw new Error('No Overpass counts returned');
       const c = Object.fromEntries(Object.keys(queries).map(k=>[k,0]));
       entries.forEach(([k,v])=>{ c[k]=v; });
+      c.uni = 0; c.eat = c.retail; c.shop = 0; c.transit = c.walk; c.station = 0; c.hosp = 0; c.junction = 0;
       return c;
     }catch(e){}
   }
@@ -731,24 +727,20 @@ function goodFactors(liveResults, amen){
   return good.slice(0,4);
 }
 function renderInsights(st, R, census, amen, liveResults){
-  const gm = term => `https://www.google.com/maps/search/${encodeURIComponent(term + ' near ' + st.display)}`;
   const retail = amen ? amen.eat + amen.shop : null;
   const items = [
-    [amen ? retail : 'Open', 'Dining / retail', 38, gm('restaurants and shops')],
-    [amen ? amen.park : 'Open', 'Parks', 39, gm('parks')],
-    [amen ? amen.transit + amen.station : 'Open', 'Transit points', 40, gm('transit stops')],
-    [amen ? amen.health : 'Open', 'Healthcare', 42, gm('hospitals clinics pharmacies')],
-    [amen ? amen.community : 'Open', 'Community places', 44, gm('community centers libraries')],
-    [amen ? amen.constr : 'Open', 'Construction', 45, gm('construction')]
+    [amen ? retail : 0, 'Dining / retail', 38],
+    [amen ? amen.park : 0, 'Parks', 39],
+    [amen ? amen.transit + amen.station : 0, 'Transit points', 40],
+    [amen ? amen.health : 0, 'Healthcare', 42],
+    [amen ? amen.community : 0, 'Community places', 44],
+    [amen ? amen.constr : 0, 'Construction', 45]
   ];
   $('#neighborhoodSnapshot').innerHTML = `<div class="snapgrid">
-    ${items.map(([v,k,n,url])=>`<button type="button" class="${amen?'':'muted'}" data-snap-factor="${n}" data-map-url="${amen?'':url}" aria-label="${amen?'Open '+k+' details':'Open '+k+' in Google Maps'}"><b>${v}</b><span>${k}</span></button>`).join('')}
-  </div>${amen ? '' : '<p class="snapnote">Counts load from OpenStreetMap. Google Maps links are shown when counts are unavailable.</p>'}`;
+    ${items.map(([v,k,n])=>`<button type="button" class="${amen?'':'muted'}" data-snap-factor="${n}" aria-label="Open ${k} details"><b>${v}</b><span>${k}</span></button>`).join('')}
+  </div>${amen ? '' : '<p class="snapnote">Counts load from OpenStreetMap. Showing 0 when the count service is unavailable.</p>'}`;
   document.querySelectorAll('#neighborhoodSnapshot [data-snap-factor]').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      if(btn.dataset.mapUrl) window.open(btn.dataset.mapUrl, '_blank', 'noopener');
-      else openFactorModal(+btn.dataset.snapFactor);
-    });
+    btn.addEventListener('click',()=>openFactorModal(+btn.dataset.snapFactor));
   });
 }
 

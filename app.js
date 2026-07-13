@@ -456,23 +456,25 @@ function renderDrivers(){
 }
 function renderOverall(liveResults){
   RISK = computeRisk(liveResults);
-  drawGauge(RISK.overall.score, RISK.overall.band);
-  $('#dimTabs').innerHTML = DIMMETA.map(([k,label])=>{
-    const s = k==='overall' ? RISK.overall : RISK.dims[k];
-    return `<button class="dimtab ${k===ACTIVEDIM?'active':''}" data-dim="${k}">
-      <span class="t">${label}</span><span class="s" style="color:${RC[BANDKEY[s.band]]}">${s.score.toFixed(1)} · ${s.band}</span></button>`;
-  }).join('');
-  document.querySelectorAll('.dimtab').forEach(b=>b.addEventListener('click',()=>{
-    ACTIVEDIM=b.dataset.dim;
-    document.querySelectorAll('.dimtab').forEach(x=>x.classList.toggle('active', x.dataset.dim===ACTIVEDIM));
-    renderDrivers();
+  const driverHTML = x =>
+    `<div class="driver" data-n="${x.n}" title="Jump to this factor in the summary table">
+       <span class="d-name">#${x.n} ${x.name}${x.live?' <span class="livechip">LIVE DATA</span>':''}</span>
+       ${lvlPill(x.level)}<span class="d-why">${x.why}</span></div>`;
+  const items = RISK.overall.items;
+  const pick = lvl => [...items].filter(x=>x.level===lvl)
+      .sort((a,b)=>b.v-a.v || (b.live?1:0)-(a.live?1:0)).slice(0,3);
+  const render = arr => arr.length ? arr.map(driverHTML).join('')
+      : '<div class="driver none">None identified at this address.</div>';
+  $('#highList').innerHTML = render(pick('High'));
+  $('#modList').innerHTML  = render(pick('Moderate'));
+  document.querySelectorAll('.topriskgrid .driver[data-n]').forEach(el=>el.addEventListener('click',()=>{
+    const row=document.getElementById('sumrow-'+el.dataset.n);
+    if(row){ row.scrollIntoView({behavior:'smooth', block:'center'}); row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash'); }
   }));
-  renderDrivers();
   const liveN = Object.keys(STATE._live||{}).length;
   $('#methodBody').innerHTML =
-    `<p>Each of the 36 factors carries an impact level per dimension &mdash; <b>NA</b> (excluded), <b>No</b> (0), <b>Low</b> (2.5), <b>Moderate</b> (6), <b>High</b> (9). A dimension's score is the average across its applicable factors; the overall score is the average of the three dimensions, banded as <b>0 No &middot; 1&ndash;4 Low &middot; 5&ndash;7 Moderate &middot; 8&ndash;10 High</b>.</p>
-     <p><b>What's live vs. baseline:</b> ${liveN} factor(s) are scored from live, address-specific data (FEMA flood, CGS fault / liquefaction / landslide zones, CAL FIRE fire severity, OpenStreetMap amenity counts, Census ACS) and override the baseline where they apply &mdash; e.g. a Special Flood Hazard Area raises Property &amp; Insurance sharply. The remaining factors use their typical California exposure profile, so treat this as an <b>indicative screening score</b>, not an address-certified rating. More live lookups (CAL FIRE, CGS, CalGEM&hellip;) can be added over time to make it increasingly address-specific.</p>
-     <p>Informational only &mdash; not a substitute for professional inspection, geotechnical study, or insurance underwriting.</p>`;
+    `<p>Each of the ${FACTORS.length} factors carries an impact level per dimension &mdash; <b>NA</b> (excluded), <b>No</b>, <b>Low</b>, <b>Moderate</b>, <b>High</b>. The lists above show the strongest High and Moderate factors for this address, live-verified factors first.</p>
+     <p><b>What's live vs. baseline:</b> ${liveN} factor(s) are scored from live, address-specific data (FEMA flood, CGS fault / liquefaction / landslide zones, CAL FIRE fire severity, OpenStreetMap amenity counts, Census ACS); the rest use their typical California exposure profile. Informational screening only &mdash; not a substitute for professional inspection or underwriting.</p>`;
   return RISK;
 }
 
@@ -638,7 +640,6 @@ async function analyze(){
   renderSummaryTable(st, liveResults);
   STATE._live=liveResults;
   const R = renderOverall(liveResults);
-  updateMapRisk(st);
   const fmt = d => `${d.band} · ${d.score.toFixed(1)}/10`;
   const d = { health: fmt(R.dims.health), prop: fmt(R.dims.property), ins: fmt(R.dims.insurance) }; // used by the PDF cover
   $('#foot').innerHTML=`Generated ${new Date().toLocaleDateString()} · Geocoding © OpenStreetMap/Nominatim · Demographics: U.S. Census ACS · Flood: FEMA NFHL · Basemaps © Esri. `

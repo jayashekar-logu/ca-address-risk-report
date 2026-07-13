@@ -52,22 +52,22 @@
           <div id="layerStatus" class="layer-status"></div>
         </div>
         <div class="riskcol">
-          <div class="risk-head">Overall risk score</div>
-          <div class="gaugebox">
-            <svg id="gauge" viewBox="0 0 220 130" aria-label="overall risk gauge"></svg>
-            <div class="gauge-num" id="gaugeNum">&mdash;</div>
-            <div class="gauge-band" id="gaugeBand"></div>
-          </div>
-          <div class="dimtabs" id="dimTabs"></div>
-          <div class="drivers">
-            <div class="drivers-title" id="driversTitle"></div>
-            <div id="driversList"></div>
+          <div class="risk-head">Top risks in this area</div>
+          <div class="topriskgrid">
+            <div class="topcol">
+              <div class="drivers-title">Top high-risk factors</div>
+              <div id="highList"></div>
+            </div>
+            <div class="topcol">
+              <div class="drivers-title">Top moderate-risk factors</div>
+              <div id="modList"></div>
+            </div>
           </div>
         </div>
       </div>
       <div class="profgrid" id="profile"></div>
       <details class="method" id="methodBox">
-        <summary>How this score is calculated</summary>
+        <summary>How risk levels are determined</summary>
         <div id="methodBody"></div>
       </details>
     </section>

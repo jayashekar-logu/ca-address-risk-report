@@ -275,3 +275,10 @@ tr.flash{animation:rowflash 1.6s ease-out}
 .xmodal-body img{width:100%;border:1px solid var(--line);border-radius:10px}
 .xmodal-foot{padding:9px 18px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
 .rk a.rk-maplink{font-size:10.5px;font-weight:700;opacity:.85}
+
+/* ---------- Top risks lists (replaces gauge/score) ---------- */
+.riskcol{display:flex;flex-direction:column;gap:12px}
+@media(min-width:860px){.riskcol{display:flex}}
+.topriskgrid{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:1080px){.topriskgrid{grid-template-columns:1fr 1fr}}
+.driver.none{color:var(--muted);cursor:default;border-style:dashed;background:#fafbfd}

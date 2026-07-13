@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="styles.css?v=41"/>
+<link rel="stylesheet" href="styles.css?v=42"/>
 </head>
 <body>
 <div id="pageLoading" class="page-loading hidden" role="status" aria-live="polite" aria-hidden="true">
@@ -27,21 +27,45 @@
 <!-- HERO -->
 <header class="hero">
   <div class="hero-inner">
-    <div class="brand"><span class="dot"></span> California Neighborhood Intelligence</div>
-    <h1>Know the risk behind any California address.</h1>
-    <p class="lede">Enter a home address and every hazard &amp; livability map — flood, fire, earthquake, pollution, schools, transit and 30+ more — recenters on it, with live risk lookups and a clean downloadable PDF.</p>
+    <div class="hero-layout">
+      <div class="hero-copy">
+        <div class="brand"><span class="dot"></span> California Neighborhood Intelligence</div>
+        <h1>Know the risk behind any California address.</h1>
+        <p class="lede">Enter an address and see hazard maps, neighborhood signals, air quality, weather and report-ready context in one place.</p>
 
-    <div class="searchcard">
-      <div class="field">
-        <label for="addr">California home address</label>
-        <input id="addr" type="text" placeholder="Start typing a California address…" autocomplete="off" aria-autocomplete="list"/>
-        <div id="suggest" class="suggest hidden"></div>
+        <div class="searchcard">
+          <div class="field">
+            <label for="addr">California address</label>
+            <input id="addr" type="text" placeholder="Start typing a California address..." autocomplete="off" aria-autocomplete="list"/>
+            <div id="suggest" class="suggest hidden"></div>
+          </div>
+          <button class="btn primary" id="go">Analyze</button>
+          <button class="btn ghost" id="pdf" disabled>PDF</button>
+        </div>
+        <div class="status" id="status"></div>
+        <div class="trust">45 factors · FEMA · CAL FIRE · CGS · U.S. Census · OpenStreetMap · CalEPA<span id="buildTag" class="buildtag"></span></div>
       </div>
-      <button class="btn primary" id="go">Analyze</button>
-      <button class="btn ghost" id="pdf" disabled>↓ PDF</button>
+
+      <div class="hero-visual" aria-hidden="true">
+        <div class="visual-top">
+          <span>Live address scan</span>
+          <b>CA</b>
+        </div>
+        <div class="visual-map">
+          <span class="route route-a"></span>
+          <span class="route route-b"></span>
+          <span class="zone zone-flood"></span>
+          <span class="zone zone-fire"></span>
+          <span class="pin"></span>
+        </div>
+        <div class="visual-grid">
+          <div><b>Flood</b><span>FEMA</span></div>
+          <div><b>Fire</b><span>CAL FIRE</span></div>
+          <div><b>Quake</b><span>CGS</span></div>
+          <div><b>Air</b><span>AQI</span></div>
+        </div>
+      </div>
     </div>
-    <div class="status" id="status"></div>
-    <div class="trust">45 factors · FEMA · CAL FIRE · CGS · U.S. Census · OpenStreetMap · CalEPA<span id="buildTag" class="buildtag"></span></div>
   </div>
 </header>
 
@@ -154,7 +178,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="config.js?v=39"></script>
+<script src="config.js?v=40"></script>
 <script src="factors.js?v=8"></script>
 <script src="explanations.js?v=7"></script>
 <script src="app.js?v=66"></script>

@@ -23,8 +23,8 @@ h1,h2,h3{margin:0}
 .hero{position:relative;background:linear-gradient(135deg,#0f1b2d 0%,#14233b 52%,#20395f 100%);color:#fff;padding:54px 20px 98px;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:34px 34px;mask-image:linear-gradient(90deg,rgba(0,0,0,.9),rgba(0,0,0,.45));pointer-events:none}
 .hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:92px;background:linear-gradient(180deg,transparent,rgba(15,27,45,.38));pointer-events:none}
-.hero-inner{max-width:1180px;margin:0 auto;position:relative;z-index:1}
-.hero-layout{display:grid;grid-template-columns:minmax(0,1.05fr) 390px;gap:46px;align-items:center}
+.hero-inner{max-width:880px;margin:0 auto;position:relative;z-index:1}
+.hero-layout{display:block}
 .hero-copy{min-width:0}
 .brand{display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#bed0ec;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);padding:7px 13px;border-radius:30px;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
 .brand .dot{width:8px;height:8px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 4px rgba(61,220,132,.2)}
@@ -47,34 +47,14 @@ h1,h2,h3{margin:0}
 .hero .status.err{color:#ffb4c0}
 .hero .status.ok{color:#9ff0c4}
 .hero .status .spinner{border-color:rgba(255,255,255,.3);border-top-color:#fff}
-.hero-visual{border:1px solid rgba(255,255,255,.16);border-radius:22px;background:rgba(255,255,255,.08);box-shadow:0 24px 70px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.08);padding:16px;backdrop-filter:blur(14px)}
-.visual-top{display:flex;align-items:center;justify-content:space-between;color:#dbe7f8;font-size:12px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;margin-bottom:12px}
-.visual-top b{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#fff;color:#1f3a5f;font-size:12px}
-.visual-map{position:relative;height:214px;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.16);background:#dbe8dc;background-image:linear-gradient(30deg,rgba(46,139,87,.24) 12%,transparent 12% 24%,rgba(224,138,0,.18) 24% 38%,transparent 38% 52%,rgba(47,109,246,.16) 52% 66%,transparent 66%),linear-gradient(90deg,rgba(15,27,45,.12) 1px,transparent 1px),linear-gradient(rgba(15,27,45,.12) 1px,transparent 1px);background-size:260px 220px,38px 38px,38px 38px}
-.route{position:absolute;height:5px;border-radius:999px;background:#fff;box-shadow:0 0 0 1px rgba(15,27,45,.16);transform-origin:left center}
-.route-a{left:20px;top:128px;width:260px;transform:rotate(-18deg)}
-.route-b{left:92px;top:48px;width:210px;transform:rotate(28deg);background:#f8d36a}
-.zone{position:absolute;border:2px solid rgba(255,255,255,.72);background:rgba(47,109,246,.26)}
-.zone-flood{left:22px;bottom:20px;width:126px;height:80px;border-radius:28px 50px 36px 24px}
-.zone-fire{right:22px;top:26px;width:116px;height:96px;border-radius:44px 24px 48px 30px;background:rgba(224,138,0,.34)}
-.pin{position:absolute;left:50%;top:50%;width:24px;height:24px;border-radius:50% 50% 50% 0;background:#2f6df6;border:3px solid #fff;transform:translate(-50%,-50%) rotate(-45deg);box-shadow:0 12px 24px rgba(15,27,45,.35)}
-.pin::after{content:"";position:absolute;inset:5px;border-radius:50%;background:#fff}
-.visual-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
-.visual-grid div{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.09);padding:10px 9px}
-.visual-grid b{display:block;color:#fff;font-size:12px;line-height:1.1}
-.visual-grid span{display:block;color:#a9bad6;font-size:10px;font-weight:800;margin-top:5px;text-transform:uppercase;letter-spacing:.6px}
 @media(max-width:980px){
   .hero{padding-top:42px}
-  .hero-layout{grid-template-columns:1fr;gap:28px}
-  .hero-visual{max-width:620px}
 }
 @media(max-width:640px){
   .hero{padding:34px 14px 82px}
   .hero h1{font-size:38px}
   .searchcard{display:grid;grid-template-columns:1fr;gap:10px;padding:12px}
   .searchcard .btn{width:100%}
-  .visual-map{height:170px}
-  .visual-grid{grid-template-columns:repeat(2,1fr)}
 }
 
 /* ---------- LAYOUT ---------- */

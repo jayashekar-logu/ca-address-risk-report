@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="styles.css?v=42"/>
+<link rel="stylesheet" href="styles.css?v=43"/>
 </head>
 <body>
 <div id="pageLoading" class="page-loading hidden" role="status" aria-live="polite" aria-hidden="true">
@@ -178,15 +178,28 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="config.js?v=40"></script>
+<script src="config.js?v=41"></script>
 <script src="factors.js?v=8"></script>
 <script src="explanations.js?v=7"></script>
-<script src="app.js?v=66"></script>
+<script src="app.js?v=67"></script>
 <div id="xmodal" class="xmodal hidden" role="dialog" aria-modal="true">
   <div class="xmodal-card">
     <div class="xmodal-head"><h3 id="xmodalTitle"></h3><button id="xmodalClose" aria-label="Close">×</button></div>
     <div class="xmodal-body" id="xmodalBody"></div>
     <div class="xmodal-foot" id="xmodalFoot">Summary source: project factor-explanation workbooks.</div>
+  </div>
+</div>
+<div id="donationModal" class="donation-modal hidden" role="dialog" aria-modal="true" aria-labelledby="donationTitle">
+  <div class="donation-card">
+    <button id="donationClose" class="donation-close" aria-label="Close donation option">×</button>
+    <div class="donation-mark">$</div>
+    <h3 id="donationTitle">Support this free report</h3>
+    <p>Your PDF is downloaded. If this report helped, you can leave a small optional donation through Stripe.</p>
+    <div class="donation-actions">
+      <a id="donationStripe" class="btn primary" href="#" target="_blank" rel="noopener">Donate with Stripe</a>
+      <button id="donationSkip" class="btn ghost" type="button">No thanks</button>
+    </div>
+    <div class="donation-note">Donations are optional and never required to download the PDF.</div>
   </div>
 </div>
 </body>

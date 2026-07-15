@@ -603,11 +603,34 @@ function closeFactorModal(){
     row.setAttribute('aria-pressed','false');
   });
 }
+function stripeDonationUrl(){
+  const url = String((window.APP_CONFIG||{}).STRIPE_DONATION_URL || '').trim();
+  return /^https:\/\/(buy\.stripe\.com|checkout\.stripe\.com|stripe\.com)\//i.test(url) ? url : '';
+}
+function closeDonationModal(){
+  const modal = $('#donationModal');
+  if(modal) modal.classList.add('hidden');
+}
+function showDonationModal(){
+  const url = stripeDonationUrl();
+  if(!url) return;
+  const modal = $('#donationModal');
+  const link = $('#donationStripe');
+  if(!modal || !link) return;
+  link.href = url;
+  modal.classList.remove('hidden');
+}
 (function(){
   document.addEventListener('click', e=>{
     if(e.target && (e.target.id==='xmodalClose' || e.target.id==='xmodal')) closeFactorModal();
+    if(e.target && (e.target.id==='donationClose' || e.target.id==='donationSkip' || e.target.id==='donationModal')) closeDonationModal();
   });
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeFactorModal(); });
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){
+      closeFactorModal();
+      closeDonationModal();
+    }
+  });
 })();
 
 /* ---------- At-a-glance interactivity: category chips, search, risk sort ---------- */
@@ -1353,6 +1376,7 @@ async function makePDF(){
   const safe=(STATE.zip||'address')+'_'+(STATE.display.split(',')[0].replace(/[^a-z0-9]+/gi,'_'));
   doc.save(`CA_Risk_Report_${safe}.pdf`);
   setStatus('✓ PDF downloaded.','ok');
+  showDonationModal();
   }finally{
     $('#pdf').disabled=false;
   }

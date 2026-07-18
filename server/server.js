@@ -33,9 +33,12 @@ function cleanSupabaseUrl(value) {
 const SUPABASE_URL = cleanSupabaseUrl(process.env.SUPABASE_URL);
 const SUPABASE_SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_STATS_ID = process.env.SUPABASE_STATS_ID || 'home-risk-radar';
+const OPENAI_API_KEY = String(process.env.OPENAI_API_KEY || '');
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5';
 
 const app = express();
 app.use(cors());
+app.use(express.json({ limit: '96kb' }));
 
 let browserPromise = null;
 function getBrowser() {
@@ -203,7 +206,7 @@ async function captureShot(site, query, debug = false) {
   }
 }
 
-const SERVER_VERSION = 'v20-supabase-stats-fallback'; // bump when editing; check at GET /
+const SERVER_VERSION = 'v21-report-agent'; // bump when editing; check at GET /
 
 function hasSupabaseStats() {
   return !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
@@ -435,6 +438,70 @@ app.post('/api/stats/download', async (req, res) => {
   } catch (e) {
     console.error('[stats] download increment failed', e);
     res.status(502).json({ error: 'stats_increment_failed', detail: String(e.message || e), server: SERVER_VERSION });
+  }
+});
+
+function agentInstructions() {
+  return `You are Ask Home Risk Radar, an informational assistant for a California address risk report.
+
+Rules:
+- Answer only from the supplied report context. If the context does not include something, say what should be verified with official sources.
+- Do not provide legal, financial, insurance, medical, appraisal, or real estate advice.
+- Keep answers concise, practical, and plain English.
+- Focus on hazards, livability, insurance questions to ask, and buyer due-diligence checklists.
+- Always include a short reminder that this is informational screening, not a substitute for licensed professional advice.`;
+}
+
+function outputTextFromResponse(data) {
+  if (typeof data?.output_text === 'string') return data.output_text.trim();
+  const chunks = [];
+  for (const item of data?.output || []) {
+    for (const content of item?.content || []) {
+      if (typeof content?.text === 'string') chunks.push(content.text);
+    }
+  }
+  return chunks.join('\n').trim();
+}
+
+app.post('/api/agent', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!OPENAI_API_KEY) {
+    return res.status(503).json({ error: 'agent_not_configured', message: 'OPENAI_API_KEY is not configured on the server.', server: SERVER_VERSION });
+  }
+
+  const question = String(req.body?.question || '').trim().slice(0, 800);
+  const report = req.body?.report || {};
+  if (!question) return res.status(400).json({ error: 'missing_question', server: SERVER_VERSION });
+
+  const context = JSON.stringify(report, null, 2).slice(0, 16000);
+  try {
+    const apiRes = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        instructions: agentInstructions(),
+        input: `Report context:
+${context}
+
+User question:
+${question}`,
+        max_output_tokens: 650,
+        store: false,
+      }),
+    });
+    const data = await apiRes.json().catch(() => ({}));
+    if (!apiRes.ok) {
+      console.error('[agent] OpenAI request failed', apiRes.status, data?.error || data);
+      return res.status(502).json({ error: 'agent_failed', message: data?.error?.message || `OpenAI request failed: ${apiRes.status}`, server: SERVER_VERSION });
+    }
+    res.json({ answer: outputTextFromResponse(data) || 'I could not generate an answer from this report context.', server: SERVER_VERSION });
+  } catch (e) {
+    console.error('[agent] request failed', e);
+    res.status(502).json({ error: 'agent_failed', message: String(e.message || e), server: SERVER_VERSION });
   }
 });
 

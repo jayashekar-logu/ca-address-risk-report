@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="styles.css?v=50"/>
+<link rel="stylesheet" href="styles.css?v=51"/>
 </head>
 <body>
 <div id="pageLoading" class="page-loading hidden" role="status" aria-live="polite" aria-hidden="true">
@@ -101,6 +101,22 @@
         <div class="insight-k">Air + weather</div>
         <div id="environmentSnapshot"></div>
       </div>
+      <div class="insight-panel agent-panel">
+        <div class="insight-k">Ask Home Risk Radar</div>
+        <div id="agentChat" class="agent-chat" aria-live="polite">
+          <div class="agent-msg agent-msg-ai">Ask about this report once analysis finishes.</div>
+        </div>
+        <div class="agent-prompts" aria-label="Suggested questions">
+          <button type="button" data-agent-prompt="What are the top things to verify before buying near this address?">Buyer checklist</button>
+          <button type="button" data-agent-prompt="Explain the biggest risk factors for this address in plain English.">Top risks</button>
+          <button type="button" data-agent-prompt="What insurance questions should I ask for this address?">Insurance questions</button>
+        </div>
+        <div class="agent-input-row">
+          <input id="agentQuestion" type="text" placeholder="Ask about this report..." disabled/>
+          <button id="agentSend" class="btn primary" type="button" disabled>Ask</button>
+        </div>
+        <p class="agent-note">Informational only. Verify important decisions with licensed professionals.</p>
+      </div>
     </section>
 
     <!-- AT-A-GLANCE SUMMARY (like report pages 2–8) -->
@@ -169,10 +185,10 @@
 <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script async src="https://js.stripe.com/v3/buy-button.js"></script>
-<script src="config.js?v=57"></script>
+<script src="config.js?v=58"></script>
 <script src="factors.js?v=8"></script>
 <script src="explanations.js?v=7"></script>
-<script src="app.js?v=77"></script>
+<script src="app.js?v=78"></script>
 <div id="xmodal" class="xmodal hidden" role="dialog" aria-modal="true">
   <div class="xmodal-card">
     <div class="xmodal-head"><h3 id="xmodalTitle"></h3><button id="xmodalClose" aria-label="Close">×</button></div>

@@ -987,16 +987,15 @@ function agentContext(){
   const factorHighlights = FACTORS.map(f=>{
     const lr = live[f.n];
     if(!lr) return null;
-    const im = impacts(f);
     return {
       number: f.n,
       factor: f.name,
       category: f.cat,
       risk: lr.label || 'Open map to assess',
       detail: lr.desc || f.what || '',
-      health: im.health.level,
-      propertyValue: im.property.level,
-      insurance: im.insurance.level,
+      healthImpact: f.health || '',
+      propertyValueImpact: f.property || '',
+      insuranceImpact: f.insurance || '',
     };
   }).filter(Boolean).slice(0, 18);
   const top = (risk.overall?.items || [])

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="styles.css?v=46"/>
+<link rel="stylesheet" href="styles.css?v=47"/>
 </head>
 <body>
 <div id="pageLoading" class="page-loading hidden" role="status" aria-live="polite" aria-hidden="true">
@@ -158,10 +158,10 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="config.js?v=46"></script>
+<script src="config.js?v=47"></script>
 <script src="factors.js?v=8"></script>
 <script src="explanations.js?v=7"></script>
-<script src="app.js?v=69"></script>
+<script src="app.js?v=70"></script>
 <div id="xmodal" class="xmodal hidden" role="dialog" aria-modal="true">
   <div class="xmodal-card">
     <div class="xmodal-head"><h3 id="xmodalTitle"></h3><button id="xmodalClose" aria-label="Close">×</button></div>
@@ -173,13 +173,13 @@
   <div class="donation-card">
     <button id="donationClose" class="donation-close" aria-label="Close donation option">×</button>
     <div class="donation-mark">$</div>
-    <h3 id="donationTitle">Support this free report</h3>
-    <p>Your PDF is downloaded. If this report helped, you can leave a small optional donation through Stripe.</p>
+    <h3 id="donationTitle">Support Home Risk Radar</h3>
+    <p>Before downloading, would you like to make a small optional donation to help improve this tool?</p>
     <div class="donation-actions">
       <a id="donationStripe" class="btn primary" href="#" target="_blank" rel="noopener">Donate with Stripe</a>
-      <button id="donationSkip" class="btn ghost" type="button">No thanks</button>
+      <button id="donationSkip" class="btn ghost" type="button">Skip and download PDF</button>
     </div>
-    <div class="donation-note">Donations are optional and never required to download the PDF.</div>
+    <div id="donationNote" class="donation-note">Donation is optional and never required to download the PDF.</div>
   </div>
 </div>
 <div id="disclaimerModal" class="disclaimer-modal hidden" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle">

@@ -379,6 +379,8 @@ tr.flash{animation:rowflash 1.6s ease-out}
 .donation-card p{margin:0;color:#526178;font-size:14px;line-height:1.55}
 .donation-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
 .donation-actions .btn{text-align:center;padding:12px 14px}
+.donation-actions .hidden{display:none}
+.donation-actions.single{grid-template-columns:1fr}
 .donation-note{margin-top:12px;color:#7a879a;font-size:11.5px}
 @media(max-width:520px){.donation-actions{grid-template-columns:1fr}}
 .disclaimer-modal{position:fixed;inset:0;background:rgba(15,27,45,.58);z-index:3200;display:grid;place-items:center;padding:22px}

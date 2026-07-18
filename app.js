@@ -609,17 +609,31 @@ function stripeDonationUrl(){
   return /^https:\/\/(buy\.stripe\.com|checkout\.stripe\.com|stripe\.com)\//i.test(url) ? url : '';
 }
 function closeDonationModal(){
-  const modal = $('#donationModal');
-  if(modal) modal.classList.add('hidden');
+  const modal = $("#donationModal");
+  if(modal) modal.classList.add("hidden");
 }
 function showDonationModal(){
+  const modal = $("#donationModal");
+  const link = $("#donationStripe");
+  const note = document.querySelector("#donationNote");
+  const actions = modal ? modal.querySelector(".donation-actions") : null;
+  if(!modal || !link) return false;
   const url = stripeDonationUrl();
-  if(!url) return;
-  const modal = $('#donationModal');
-  const link = $('#donationStripe');
-  if(!modal || !link) return;
-  link.href = url;
-  modal.classList.remove('hidden');
+  if(url){
+    link.href = url;
+    link.classList.remove("hidden");
+    link.setAttribute("aria-disabled", "false");
+    if(actions) actions.classList.remove("single");
+    if(note) note.textContent = "Donation is optional. You can skip and download the PDF anytime.";
+  }else{
+    link.href = "#";
+    link.classList.add("hidden");
+    link.setAttribute("aria-disabled", "true");
+    if(actions) actions.classList.add("single");
+    if(note) note.textContent = "Stripe donation link is not configured yet. You can still download the PDF.";
+  }
+  modal.classList.remove("hidden");
+  return true;
 }
 function closeDisclaimerModal(){
   const modal = $('#disclaimerModal');
@@ -635,14 +649,19 @@ function openDisclaimerModal(){
   cont.disabled = true;
   modal.classList.remove('hidden');
 }
+function startPdfDownload(){
+  closeDonationModal();
+  makePDF().catch(e=>setStatus("PDF error: "+e.message,"err"));
+}
 function downloadPdfAfterAcknowledgement(){
   closeDisclaimerModal();
-  makePDF().catch(e=>setStatus('PDF error: '+e.message,'err'));
+  if(!showDonationModal()) startPdfDownload();
 }
 (function(){
   document.addEventListener('click', e=>{
     if(e.target && (e.target.id==='xmodalClose' || e.target.id==='xmodal')) closeFactorModal();
-    if(e.target && (e.target.id==='donationClose' || e.target.id==='donationSkip' || e.target.id==='donationModal')) closeDonationModal();
+    if(e.target && e.target.id==="donationSkip") startPdfDownload();
+    if(e.target && (e.target.id==="donationClose" || e.target.id==="donationModal")) closeDonationModal();
     if(e.target && (e.target.id==='disclaimerClose' || e.target.id==='disclaimerCancel' || e.target.id==='disclaimerModal')) closeDisclaimerModal();
     if(e.target && e.target.id==='disclaimerContinue' && !e.target.disabled) downloadPdfAfterAcknowledgement();
   });
@@ -1409,7 +1428,6 @@ async function makePDF(){
   const safe=(STATE.zip||'address')+'_'+(STATE.display.split(',')[0].replace(/[^a-z0-9]+/gi,'_'));
   doc.save(`CA_Risk_Report_${safe}.pdf`);
   setStatus('✓ PDF downloaded.','ok');
-  showDonationModal();
   }finally{
     $('#pdf').disabled=false;
   }

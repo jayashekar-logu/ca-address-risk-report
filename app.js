@@ -654,49 +654,23 @@ function closeFactorModal(){
     row.setAttribute('aria-pressed','false');
   });
 }
-function stripeDonationUrl(){
-  const url = String((window.APP_CONFIG||{}).STRIPE_DONATION_URL || '').trim();
-  return /^https:\/\/(buy\.stripe\.com|checkout\.stripe\.com|stripe\.com)\//i.test(url) ? url : '';
-}
 function closeDonationModal(){
   const modal = $("#donationModal");
   if(modal) modal.classList.add("hidden");
 }
 function showDonationModal(){
   const modal = $("#donationModal");
-  const link = $("#donationStripe");
-  const skip = $("#donationSkip");
-  const note = document.querySelector("#donationNote");
-  const actions = modal ? modal.querySelector(".donation-actions") : null;
-  if(!modal || !link) return false;
-  const url = stripeDonationUrl();
-  link.dataset.url = url;
-  if(skip) skip.textContent = "Skip and download PDF";
-  if(url){
-    link.classList.remove("hidden");
-    link.disabled = false;
-    link.setAttribute("aria-disabled", "false");
-    if(actions) actions.classList.remove("single");
-    if(note) note.textContent = "Stripe opens in a separate tab. Keep this report tab open, then return here to download the PDF.";
-  }else{
-    link.classList.add("hidden");
-    link.disabled = true;
-    link.setAttribute("aria-disabled", "true");
-    if(actions) actions.classList.add("single");
-    if(note) note.textContent = "Stripe donation link is not configured yet. You can still download the PDF.";
-  }
-  modal.classList.remove("hidden");
-  return true;
-}
-function openStripeDonation(){
-  const btn = $("#donationStripe");
+  const buy = $("#donationBuy");
   const skip = $("#donationSkip");
   const note = $("#donationNote");
-  const url = btn ? btn.dataset.url : '';
-  if(!url) return;
-  window.open(url, 'home-risk-radar-donation', 'noopener,noreferrer');
+  const actions = modal ? modal.querySelector(".donation-actions") : null;
+  if(!modal) return false;
+  if(buy) buy.classList.remove("hidden");
   if(skip) skip.textContent = "Download PDF";
-  if(note) note.textContent = "Thanks for supporting Home Risk Radar. Stripe opened in another tab; return here and click Download PDF when ready.";
+  if(actions) actions.classList.add("single");
+  if(note) note.textContent = "Donation is optional. You can download the PDF with or without donating.";
+  modal.classList.remove("hidden");
+  return true;
 }
 function closeDisclaimerModal(){
   const modal = $('#disclaimerModal');
@@ -723,7 +697,6 @@ function downloadPdfAfterAcknowledgement(){
 (function(){
   document.addEventListener('click', e=>{
     if(e.target && (e.target.id==='xmodalClose' || e.target.id==='xmodal')) closeFactorModal();
-    if(e.target && e.target.id==="donationStripe") openStripeDonation();
     if(e.target && e.target.id==="donationSkip") startPdfDownload();
     if(e.target && (e.target.id==="donationClose" || e.target.id==="donationModal")) closeDonationModal();
     if(e.target && (e.target.id==='disclaimerClose' || e.target.id==='disclaimerCancel' || e.target.id==='disclaimerModal')) closeDisclaimerModal();

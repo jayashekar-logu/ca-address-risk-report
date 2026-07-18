@@ -384,6 +384,9 @@ tr.flash{animation:rowflash 1.6s ease-out}
 .donation-mark{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 13px;border-radius:16px;background:#eaf1fe;color:var(--accent);font-size:24px;font-weight:900}
 .donation-card h3{font-size:20px;font-weight:900;color:var(--ink);letter-spacing:0;margin:0 0 8px}
 .donation-card p{margin:0;color:#526178;font-size:14px;line-height:1.55}
+.donation-buy{display:grid;place-items:center;margin-top:18px}
+.donation-buy.hidden{display:none}
+.donation-buy stripe-buy-button{display:block;width:100%}
 .donation-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
 .donation-actions .btn{text-align:center;padding:12px 14px}
 .donation-actions .hidden{display:none}

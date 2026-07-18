@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="styles.css?v=49"/>
+<link rel="stylesheet" href="styles.css?v=50"/>
 </head>
 <body>
 <div id="pageLoading" class="page-loading hidden" role="status" aria-live="polite" aria-hidden="true">
@@ -168,10 +168,11 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="config.js?v=53"></script>
+<script async src="https://js.stripe.com/v3/buy-button.js"></script>
+<script src="config.js?v=54"></script>
 <script src="factors.js?v=8"></script>
 <script src="explanations.js?v=7"></script>
-<script src="app.js?v=73"></script>
+<script src="app.js?v=74"></script>
 <div id="xmodal" class="xmodal hidden" role="dialog" aria-modal="true">
   <div class="xmodal-card">
     <div class="xmodal-head"><h3 id="xmodalTitle"></h3><button id="xmodalClose" aria-label="Close">×</button></div>
@@ -185,11 +186,17 @@
     <div class="donation-mark">$</div>
     <h3 id="donationTitle">Support Home Risk Radar</h3>
     <p>Before downloading, would you like to make a small optional donation to help improve this tool?</p>
-    <div class="donation-actions">
-      <button id="donationStripe" class="btn primary" type="button">Donate with Stripe</button>
-      <button id="donationSkip" class="btn ghost" type="button">Skip and download PDF</button>
+    <div id="donationBuy" class="donation-buy">
+      <stripe-buy-button
+        buy-button-id="buy_btn_1TudRzDk9Kn8FTSY4pGuNA0A"
+        publishable-key="pk_live_51TtImBDk9Kn8FTSYqaFjd8NYMHPKwYsO9hEwfmGRBLSDDelNdsmkz494fxzsKKxUVKWCHWt8TUIKR52HL5MVayte00w3O8GwHa"
+      >
+      </stripe-buy-button>
     </div>
-    <div id="donationNote" class="donation-note">Donation is optional and never required to download the PDF.</div>
+    <div class="donation-actions single">
+      <button id="donationSkip" class="btn ghost" type="button">Download PDF</button>
+    </div>
+    <div id="donationNote" class="donation-note">Donation is optional. You can download the PDF with or without donating.</div>
   </div>
 </div>
 <div id="disclaimerModal" class="disclaimer-modal hidden" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle">

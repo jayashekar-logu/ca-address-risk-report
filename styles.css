@@ -44,9 +44,9 @@ h1,h2,h3{margin:0}
 .btn.ghost:hover{background:#f1f4fa}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .trust{margin-top:17px;font-size:12px;color:#93a9c9;letter-spacing:.3px}
-.site-stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:13px;color:#d8e4f6;font-size:12px}
-.site-stats span{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:6px 10px}
-.site-stats b{color:#fff;font-size:13px}
+.site-stats{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 18px;color:#d8e4f6;font-size:15px}
+.site-stats span{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:10px 16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 10px 24px rgba(0,0,0,.12);font-weight:650}
+.site-stats b{color:#fff;font-size:26px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
 .hero .status{margin-top:14px;min-height:18px;font-size:13px;color:#dce6f6}
 .hero .status.err{color:#ffb4c0}
 .hero .status.ok{color:#9ff0c4}
@@ -59,6 +59,9 @@ h1,h2,h3{margin:0}
   .hero h1{font-size:38px}
   .searchcard{display:grid;grid-template-columns:1fr;gap:10px;padding:12px}
   .searchcard .btn{width:100%}
+  .site-stats{gap:8px;font-size:13px;margin-bottom:14px}
+  .site-stats span{padding:8px 12px}
+  .site-stats b{font-size:21px}
 }
 
 /* ---------- LAYOUT ---------- */

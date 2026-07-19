@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="styles.css?v=51"/>
+<link rel="stylesheet" href="styles.css?v=52"/>
 </head>
 <body>
 <div id="pageLoading" class="page-loading hidden" role="status" aria-live="polite" aria-hidden="true">
@@ -33,6 +33,10 @@
         <h1>Know the risk behind any California address.</h1>
         <p class="lede">Enter an address and see hazard maps, neighborhood signals, air quality, weather and report-ready context in one place.</p>
 
+        <div class="site-stats" id="siteStats" aria-live="polite">
+          <span><b id="siteViews">—</b> site views</span>
+          <span><b id="pdfDownloads">—</b> PDF downloads</span>
+        </div>
         <div class="searchcard">
           <div class="field">
             <label for="addr">California address</label>
@@ -43,10 +47,6 @@
           <button class="btn ghost" id="pdf" disabled>PDF</button>
         </div>
         <div class="status" id="status"></div>
-        <div class="site-stats" id="siteStats" aria-live="polite">
-          <span><b id="siteViews">—</b> site views</span>
-          <span><b id="pdfDownloads">—</b> PDF downloads</span>
-        </div>
         <div class="trust">45 factors · FEMA · CAL FIRE · CGS · U.S. Census · OpenStreetMap · CalEPA<span id="buildTag" class="buildtag"></span></div>
       </div>
     </div>

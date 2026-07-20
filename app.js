@@ -592,6 +592,29 @@ function loadExplanationImages(panel){
   panel.dataset.loaded = 'true';
 }
 
+
+function faultLineEmbed(st){
+  const lon = Number.isFinite(+st?.lon) ? +st.lon : -115.62444999999803;
+  const lat = Number.isFinite(+st?.lat) ? +st.lat : 36.37991451381002;
+  return `<div class="arcgis-map-wrap">
+    <arcgis-embedded-map
+      style="height:600px;width:700px;"
+      item-id="2f55776584884d3b9647b9b3f78b5450"
+      theme="light"
+      bookmarks-enabled
+      heading-enabled
+      legend-enabled
+      information-enabled
+      share-enabled
+      basemap-gallery-enabled
+      time-zone-label-enabled
+      center="${lon},${lat}"
+      scale="18489297.737236"
+      portal-url="https://www.arcgis.com">
+    </arcgis-embedded-map>
+  </div>`;
+}
+
 function impactBlock(label, item){
   return `<div class="detail-impact">
     <div class="detail-impact-top"><span>${label}</span>${lvlPill(item.level)}</div>
@@ -615,6 +638,7 @@ function openFactorModal(n){
         ${imgs.map((s,i)=>`<img src="${s}" loading="lazy" alt="${f.name} explanation ${i+1}"/>`).join('')}
        </div>`
     : `<div class="detail-empty">No explanation images are available for this factor yet.</div>`;
+  const embeddedMap = f.n === 5 ? faultLineEmbed(STATE || {}) : '';
   $('#xmodalTitle').textContent = `#${f.n} ${f.name}`;
   $('#xmodalBody').innerHTML = `<div class="detail-modal">
     <div class="detail-head">
@@ -641,6 +665,7 @@ function openFactorModal(n){
       <div class="detail-actions">
         <a class="btn primary detail-map" href="${mapUrl}" target="_blank" rel="noopener">Open map ↗</a>
       </div>
+      ${embeddedMap}
     </div>
     <div class="detail-section">
       <div class="detail-section-title">Explanation</div>

@@ -683,19 +683,32 @@ function geometryDistanceMiles(geometry, lon, lat){
   return best;
 }
 
-function faultRiskFromDistance(nearest){
-  if(!nearest || !Number.isFinite(nearest.distanceMiles)) return null;
-  const miles = nearest.distanceMiles;
-  const name = nearest.name || nearest.layerName || 'mapped CGS fault';
-  const dist = miles < 0.1 ? 'within 0.1 miles' : `${miles.toFixed(miles < 10 ? 1 : 0)} miles`;
-  const desc = `Nearest CGS FAM 750k fault feature is ${dist} away (${name}).`;
-  if(miles <= 5) return {label:'High Risk',score:8,desc,
-    impacts:{property:IMP('High','Mapped fault within 5 miles - elevated seismic disclosure and structural due-diligence context.'),insurance:IMP('High','Near-fault earthquake exposure can affect coverage cost and underwriting.')}};
-  if(miles <= 10) return {label:'Moderate Risk',score:6,desc,
-    impacts:{property:IMP('Moderate','Mapped fault within 10 miles - seismic context should be reviewed.'),insurance:IMP('Moderate','Earthquake coverage may reflect regional fault proximity.')}};
-  if(miles <= 15) return {label:'Low Risk',score:3,desc,
-    impacts:{property:IMP('Low','Mapped fault within 15 miles, but not immediate proximity.'),insurance:IMP('Moderate','California regional earthquake exposure still applies.')}};
-  return {label:'Low Risk',score:2,desc:`No CGS FAM 750k fault feature found within 15 miles. Nearest checked feature is ${dist} away (${name}).`,
+function faultDistanceLabel(miles){
+  return miles < 0.1 ? 'within 0.1 miles' : `${miles.toFixed(miles < 10 ? 1 : 0)} miles`;
+}
+
+function faultRiskFromDistance(nearestRecent, nearestContext){
+  if(nearestRecent && Number.isFinite(nearestRecent.distanceMiles)){
+    const miles = nearestRecent.distanceMiles;
+    const name = nearestRecent.name || nearestRecent.layerName || 'mapped CGS fault';
+    const dist = faultDistanceLabel(miles);
+    const desc = `Nearest active/recent CGS FAM 750k fault feature is ${dist} away (${name}).`;
+    if(miles <= 5) return {label:'High Risk',score:8,desc,
+      impacts:{property:IMP('High','Mapped fault within 5 miles - elevated seismic disclosure and structural due-diligence context.'),insurance:IMP('High','Near-fault earthquake exposure can affect coverage cost and underwriting.')}};
+    if(miles <= 10) return {label:'Moderate Risk',score:6,desc,
+      impacts:{property:IMP('Moderate','Mapped fault within 10 miles - seismic context should be reviewed.'),insurance:IMP('Moderate','Earthquake coverage may reflect regional fault proximity.')}};
+    if(miles <= 15) return {label:'Low Risk',score:3,desc,
+      impacts:{property:IMP('Low','Mapped fault within 15 miles, but not immediate proximity.'),insurance:IMP('Moderate','California regional earthquake exposure still applies.')}};
+    return {label:'Low Risk',score:2,desc:`No active/recent CGS FAM 750k fault feature found within 15 miles. Nearest checked active/recent feature is ${dist} away (${name}).`,
+      impacts:{property:IMP('Low','No mapped active/recent regional fault in the 15-mile check radius.'),insurance:IMP('Moderate','California regional earthquake exposure still applies.')}};
+  }
+  if(nearestContext && Number.isFinite(nearestContext.distanceMiles)){
+    const name = nearestContext.name || nearestContext.layerName || 'older mapped structure';
+    const dist = faultDistanceLabel(nearestContext.distanceMiles);
+    return {label:'Low Risk',score:2,desc:`Only an older pre-Quaternary CGS FAM 750k structure is nearby (${dist}: ${name}); no active/recent fault feature was found in the local check radius.`,
+      impacts:{property:IMP('Low','Pre-Quaternary fault mapping is context only here; no active/recent mapped fault proximity found.'),insurance:IMP('Moderate','California regional earthquake exposure still applies.')}};
+  }
+  return {label:'Low Risk',score:2,desc:'No CGS FAM 750k fault feature was found in the local check radius.',
     impacts:{property:IMP('Low','No mapped regional fault in the 15-mile check radius.'),insurance:IMP('Moderate','California regional earthquake exposure still applies.')}};
 }
 
@@ -703,22 +716,27 @@ async function localFaultRisk(lat, lon){
   if(typeof shp !== 'function') return null;
   const st = {lat, lon};
   const results = await loadFaultData();
-  let nearest = null;
+  let nearestRecent = null;
+  let nearestContext = null;
   results.forEach(({layer, data}) => {
     normalizeFaultFeatures(data).filter(f => featureNearAddress(f, st)).forEach(feature => {
       const d = geometryDistanceMiles(feature.geometry, lon, lat);
       if(!Number.isFinite(d)) return;
-      if(!nearest || d < nearest.distanceMiles){
-        const p = feature.properties || {};
-        nearest = {
-          distanceMiles: d,
-          layerName: layer.name,
-          name: p.FAULTNAME || p.FAULT_NAME || p.NAME || p.FAULT || p.FLTLABEL || p.Label || layer.name
-        };
+      const p = feature.properties || {};
+      const candidate = {
+        distanceMiles: d,
+        layerName: layer.name,
+        name: p.FAULTNAME || p.FAULT_NAME || p.NAME || p.FAULT || p.FLTLABEL || p.Label || layer.name
+      };
+      const isContextOnly = /Pre-Quaternary/i.test(layer.name);
+      if(isContextOnly){
+        if(!nearestContext || d < nearestContext.distanceMiles) nearestContext = candidate;
+      }else if(!nearestRecent || d < nearestRecent.distanceMiles){
+        nearestRecent = candidate;
       }
     });
   });
-  return faultRiskFromDistance(nearest);
+  return faultRiskFromDistance(nearestRecent, nearestContext);
 }
 
 function normalizeFaultFeatures(data){
@@ -759,7 +777,7 @@ function initFaultMap(){
       }).addTo(faultMap);
     });
     if(status) status.textContent = visibleCount
-      ? `${visibleCount.toLocaleString()} nearby fault feature(s) loaded from CGS FAM 750k.`
+      ? `${visibleCount.toLocaleString()} nearby fault feature(s) loaded from CGS FAM 750k. Quaternary and creep layers drive the score; pre-Quaternary lines are context only.`
       : 'No nearby fault features from this dataset in the current view. Zoom out or use the official CGS map for verification.';
     setTimeout(()=>faultMap.invalidateSize(), 80);
   }).catch(err => {

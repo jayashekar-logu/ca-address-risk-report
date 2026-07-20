@@ -511,28 +511,20 @@ function renderSummaryTable(st, liveResults){
     const im=effImpact(f,live);
     const mapUrl=fill(f.map, st);
     const detailBtn = `<button class="detail-arrow" type="button" data-detail="${f.n}" aria-label="Open details for ${f.name}">➜</button>`;
-    const links = `<span class="link-actions"><a class="rk-link map-open" href="${mapUrl}" target="_blank" rel="noopener">Open map</a>${detailBtn}</span>`;
+    const mapAction = f.n === 5
+      ? `<button class="rk-link map-open map-embed-open" type="button" data-fault-map="5">Open map</button>`
+      : `<a class="rk-link map-open" href="${mapUrl}" target="_blank" rel="noopener">Open map</a>`;
+    const links = `<span class="link-actions">${mapAction}${detailBtn}</span>`;
     const rowRisk = live ? live.score
       : Math.max(0, ...['health','property','insurance'].map(k=>LVLNUM[im[k].level] ?? 0));
     const imgs = (window.FACTOR_EXPLAIN||{})[f.n]||[];
     SUMMARY_ITEMS[f.n] = {f, live, rk, what, im, mapUrl, links, rowRisk, imgs};
-    const row = `<tr id="sumrow-${f.n}" class="summary-row" data-cat="${cat}" data-name="${(f.name+' '+cat).toLowerCase()}" data-risk="${rowRisk}">
+    return `<tr id="sumrow-${f.n}" class="summary-row" data-cat="${cat}" data-name="${(f.name+' '+cat).toLowerCase()}" data-risk="${rowRisk}">
       <td class="num">${f.n}</td>
       <td><div class="fname">${f.name}${live?' <span class="livechip">LIVE</span>':''}</div><div class="fcat">${cat}</div></td>
       <td class="what">${whatCell(f, what)}</td>
       ${cell(im.health)}${cell(im.property)}${cell(im.insurance)}
       <td class="rk rk-${rk}">${links}</td>
-    </tr>`;
-    if(f.n !== 5) return row;
-    return `${row}<tr class="fault-embed-row" data-cat="${cat}" data-name="${(f.name+' '+cat).toLowerCase()}" data-risk="${rowRisk}">
-      <td></td>
-      <td colspan="6">
-        <div class="fault-embed-card">
-          <div class="fault-embed-title">Fault line map centered on this address</div>
-          <div class="fault-embed-sub">Use this embedded ArcGIS map to inspect nearby mapped fault traces and related layers.</div>
-          ${faultLineEmbed(st)}
-        </div>
-      </td>
     </tr>`;
   }).join('');
   $('#summaryTable').innerHTML =
@@ -633,6 +625,21 @@ function impactBlock(label, item){
   </div>`;
 }
 
+function openFaultMapModal(){
+  if(!STATE) return;
+  $('#xmodalTitle').textContent = 'Earthquake Fault Lines Map';
+  $('#xmodalBody').innerHTML = `<div class="detail-modal">
+    <div class="detail-section no-top">
+      <div class="detail-section-title">ArcGIS fault line map</div>
+      <div class="detail-desc">Embedded map centered on ${STATE.display || 'the analyzed address'}.</div>
+      ${faultLineEmbed(STATE)}
+    </div>
+  </div>`;
+  const foot = $('#xmodalFoot');
+  if(foot) foot.textContent = 'Click outside, press Escape, or use the close button to close.';
+  $('#xmodal').classList.remove('hidden');
+}
+
 function openFactorModal(n){
   const item = SUMMARY_ITEMS[n] || SUMMARY_ITEMS[+n];
   if(!item) return;
@@ -703,6 +710,13 @@ function wireSummaryRows(){
     btn.addEventListener('click', e=>{
       e.stopPropagation();
       openFactorModal(+btn.dataset.detail);
+    });
+  });
+  document.querySelectorAll('#summaryTable .map-embed-open').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      openFaultMapModal();
     });
   });
 }

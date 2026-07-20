@@ -248,6 +248,7 @@ function esriQuery(url, build){
   });
 }
 const IMP=(level,why)=>({level,why});
+const SUPERFUND_NPL_URL = 'https://services.arcgis.com/cJ9YHowT8TU7DUyn/ArcGIS/rest/services/FAC_Superfund_Site_Boundaries_EPA_Public/FeatureServer/0';
 
 async function cgsLiquefaction(lat,lon){
   const f=await esriQuery('https://gis.conservation.ca.gov/server/rest/services/CGS_Earthquake_Hazard_Zones/SHP_Liquefaction_Zones/MapServer/0',
@@ -292,6 +293,49 @@ async function cgsTsunami(lat, lon){
     : {label:'Low Risk',score:1,desc:'Outside the CGS Tsunami Hazard Area for Emergency Planning screening layer at this point.',
        impacts:{health:IMP('Low','No mapped tsunami evacuation exposure at this point.'),property:IMP('Low','Not in the local CGS tsunami hazard screening area.'),insurance:IMP('Low','No mapped tsunami hazard context for this point.')}};
 }
+function nplSiteName(feature){
+  const p = (feature && (feature.properties || feature.attributes)) || {};
+  return p.SITE_NAME || p.SITE_FEATURE_NAME || p.EPA_ID || 'EPA NPL Superfund boundary';
+}
+
+async function epaSuperfundNpl(lat, lon){
+  const point = L.latLng(lat, lon);
+  const query = (meters) => esriQuery(SUPERFUND_NPL_URL, q => {
+    const next = meters ? q.nearby(point, meters) : q.intersects(point);
+    return next.where("STATE_CODE = 'CA'");
+  });
+  const inside = await query(0);
+  if(inside === null) return null;
+  if(inside.length){
+    const name = nplSiteName(inside[0]);
+    return {label:'High Risk',score:9,desc:`Inside or directly touching an EPA National Priorities List Superfund boundary (${name}).`,
+      impacts:{health:IMP('High','NPL boundary overlap needs careful contamination and exposure due diligence.'),property:IMP('High','Direct Superfund boundary context can materially affect buyer perception and value.'),insurance:IMP('NA','Not a standard property-insurance pricing factor.')}};
+  }
+  const within1 = await query(1609.34);
+  if(within1 === null) return null;
+  if(within1.length){
+    const name = nplSiteName(within1[0]);
+    return {label:'High Risk',score:8,desc:`EPA NPL Superfund boundary within 1 mile (${name}).`,
+      impacts:{health:IMP('High','Nearby NPL contamination warrants review of EPA site documents and exposure pathways.'),property:IMP('High','Very close Superfund proximity can affect demand and due diligence.'),insurance:IMP('NA','Not a standard property-insurance pricing factor.')}};
+  }
+  const within5 = await query(8046.72);
+  if(within5 === null) return null;
+  if(within5.length){
+    const name = nplSiteName(within5[0]);
+    return {label:'Moderate Risk',score:6,desc:`EPA NPL Superfund boundary within 5 miles (${name}).`,
+      impacts:{health:IMP('Moderate','Regional Superfund proximity should be reviewed, especially groundwater or air pathways.'),property:IMP('Moderate','Nearby NPL context may affect buyer questions and local perception.'),insurance:IMP('NA','Not a standard property-insurance pricing factor.')}};
+  }
+  const within10 = await query(16093.4);
+  if(within10 === null) return null;
+  if(within10.length){
+    const name = nplSiteName(within10[0]);
+    return {label:'Low Risk',score:3,desc:`EPA NPL Superfund boundary within 10 miles (${name}).`,
+      impacts:{health:IMP('Low','Distant NPL proximity is context only unless pathways extend toward the address.'),property:IMP('Low','Distant Superfund context is typically a due-diligence note.'),insurance:IMP('NA','Not a standard property-insurance pricing factor.')}};
+  }
+  return {label:'Low Risk',score:1,desc:'No EPA NPL Superfund boundary found within 10 miles of this address.',
+    impacts:{health:IMP('Low','No nearby NPL boundary found in the live 10-mile check.'),property:IMP('Low','No nearby NPL boundary found in the live 10-mile check.'),insurance:IMP('NA','Not a standard property-insurance pricing factor.')}};
+}
+
 async function calfireFHSZ(lat,lon){
   const f=await esriQuery('https://services.gis.ca.gov/arcgis/rest/services/Environment/Fire_Severity_Zones/MapServer/0',
                           q=>q.intersects(L.latLng(lat,lon)));
@@ -526,9 +570,11 @@ function renderSummaryTable(st, liveResults){
     const detailBtn = `<button class="detail-arrow" type="button" data-detail="${f.n}" aria-label="Open details for ${f.name}">➜</button>`;
     const mapAction = f.n === 5
       ? `<button class="rk-link map-open map-embed-open" type="button" data-fault-map="5">Open map</button>`
-      : f.n === 46
-        ? `<button class="rk-link map-open tsunami-map-open" type="button" data-tsunami-map="46">Open map</button>`
-        : `<a class="rk-link map-open" href="${mapUrl}" target="_blank" rel="noopener">Open map</a>`;
+      : f.n === 15
+        ? `<button class="rk-link map-open npl-map-open" type="button" data-npl-map="15">Open map</button>`
+        : f.n === 46
+          ? `<button class="rk-link map-open tsunami-map-open" type="button" data-tsunami-map="46">Open map</button>`
+          : `<a class="rk-link map-open" href="${mapUrl}" target="_blank" rel="noopener">Open map</a>`;
     const links = `<span class="link-actions">${mapAction}${detailBtn}</span>`;
     const rowRisk = live ? live.score
       : Math.max(0, ...['health','property','insurance'].map(k=>LVLNUM[im[k].level] ?? 0));
@@ -807,6 +853,7 @@ function initFaultMap(){
   const el = $('#faultLineMap');
   if(!el || !STATE) return;
   if(faultMap){ try{ faultMap.remove(); }catch(e){} faultMap = null; }
+  if(nplMap){ try{ nplMap.remove(); }catch(e){} nplMap = null; }
   if(tsunamiMap){ try{ tsunamiMap.remove(); }catch(e){} tsunamiMap = null; }
   faultMap = L.map(el, {scrollWheelZoom:true}).setView([STATE.lat, STATE.lon], 11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap · CGS FAM 750k'}).addTo(faultMap);
@@ -833,6 +880,61 @@ function initFaultMap(){
   });
 }
 
+
+let nplMap = null;
+function nplPopup(props){
+  const p = props || {};
+  const name = p.SITE_NAME || p.SITE_FEATURE_NAME || 'EPA NPL Superfund boundary';
+  const city = [p.CITY_NAME, p.STATE_CODE].filter(Boolean).join(', ');
+  const status = p.NPL_STATUS_CODE ? `<br><span>NPL status: ${esc(p.NPL_STATUS_CODE)}</span>` : '';
+  const place = city ? `<br><span>${esc(city)}</span>` : '';
+  return `<b>${esc(name)}</b>${place}${status}`;
+}
+
+function initNplMap(){
+  const el = $('#nplMap');
+  if(!el || !STATE) return;
+  if(nplMap){ try{ nplMap.remove(); }catch(e){} nplMap = null; }
+  nplMap = L.map(el, {scrollWheelZoom:true}).setView([STATE.lat, STATE.lon], 10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap · EPA Superfund'}).addTo(nplMap);
+  L.marker([STATE.lat, STATE.lon]).addTo(nplMap).bindPopup(STATE.display || 'Analyzed address').openPopup();
+  L.control.scale({imperial:true}).addTo(nplMap);
+  const status = $('#nplMapStatus');
+  if(status) status.textContent = 'Loading EPA NPL Superfund boundaries...';
+  if(window.L && window.L.esri){
+    try{
+      L.esri.featureLayer({
+        url: SUPERFUND_NPL_URL,
+        where: "STATE_CODE = 'CA'",
+        style: () => ({color:'#dc2626', weight:2, opacity:.9, fillColor:'#f97316', fillOpacity:.18}),
+        onEachFeature: (feature, lyr) => lyr.bindPopup(nplPopup(feature.properties))
+      }).addTo(nplMap);
+      if(status) status.textContent = 'EPA NPL Superfund boundaries loaded. Use the table result for the 1/5/10 mile screening check.';
+    }catch(err){
+      if(status) status.textContent = `NPL map could not load: ${err.message || err}`;
+    }
+  }else if(status){
+    status.textContent = 'NPL map could not load because Esri Leaflet is unavailable.';
+  }
+  setTimeout(()=>nplMap.invalidateSize(), 80);
+}
+
+function openNplMapModal(){
+  if(!STATE) return;
+  $('#xmodalTitle').textContent = 'Superfund (NPL) Sites Map';
+  $('#xmodalBody').innerHTML = `<div class="detail-modal fault-map-modal">
+    <div class="detail-section no-top">
+      <div class="detail-section-title">EPA NPL Superfund boundaries</div>
+      <div class="detail-desc">Live EPA National Priorities List Superfund site boundaries centered on ${esc(STATE.display || 'the analyzed address')}.</div>
+      <div id="nplMap" class="fault-line-map"></div>
+      <div id="nplMapStatus" class="fault-map-status">Preparing NPL map...</div>
+    </div>
+  </div>`;
+  const foot = $('#xmodalFoot');
+  if(foot) foot.textContent = 'Click outside, press Escape, or use the close button to close.';
+  $('#xmodal').classList.remove('hidden');
+  setTimeout(initNplMap, 80);
+}
 
 let tsunamiMap = null;
 function initTsunamiMap(){
@@ -984,6 +1086,13 @@ function wireSummaryRows(){
       e.preventDefault();
       e.stopPropagation();
       openFaultMapModal();
+    });
+  });
+  document.querySelectorAll('#summaryTable .npl-map-open').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      openNplMapModal();
     });
   });
   document.querySelectorAll('#summaryTable .tsunami-map-open').forEach(btn=>{
@@ -1478,13 +1587,14 @@ async function analyze(){
 
   // live lookups in parallel (hazards + livability)
   const safe = (p, label) => p.catch(e => { console.warn(`${label} lookup failed`, e); return null; });
-  const [census, flood, liq, lands, fault, fhsz, tsunami, amen, env] = await Promise.all([
+  const [census, flood, liq, lands, fault, fhsz, npl, tsunami, amen, env] = await Promise.all([
     safe(withTimeout(censusByZip(st.zip), 9000, 'Census'), 'Census'),
     safe(withTimeout(femaFloodZone(st.lat, st.lon), 9000, 'FEMA flood'), 'FEMA flood'),
     safe(withTimeout(cgsLiquefaction(st.lat, st.lon), 9000, 'CGS liquefaction'), 'CGS liquefaction'),
     safe(withTimeout(cgsLandslide(st.lat, st.lon), 9000, 'CGS landslide'), 'CGS landslide'),
     safe(withTimeout(cgsFault(st.lat, st.lon), 15000, 'CGS fault'), 'CGS fault'),
     safe(withTimeout(calfireFHSZ(st.lat, st.lon), 9000, 'CAL FIRE'), 'CAL FIRE'),
+    safe(withTimeout(epaSuperfundNpl(st.lat, st.lon), 12000, 'EPA NPL'), 'EPA NPL'),
     safe(withTimeout(cgsTsunami(st.lat, st.lon), 9000, 'CGS tsunami'), 'CGS tsunami'),
     safe(withTimeout(overpassAmenities(st), 32000, 'OpenStreetMap amenities'), 'OpenStreetMap amenities'),
     safe(withTimeout(localEnvironment(st.lat, st.lon), 6500, 'Environment'), 'Environment')
@@ -1497,6 +1607,7 @@ async function analyze(){
   if(lands){ liveResults[7]=lands; }
   if(fault){ liveResults[5]=fault; }
   if(fhsz){ liveResults[11]=fhsz; }
+  if(npl){ liveResults[15]=npl; }
   if(tsunami){ liveResults[46]=tsunami; }
   Object.assign(liveResults, livabilityResults(amen, census));
   if(census){ liveResults[1]={label:'No Risk', score:0, desc:`ZIP ${st.zip}: pop ${census.pop}, median income ${census.income}, median home ${census.home}, ${census.bachelors} bachelor's+.`}; }

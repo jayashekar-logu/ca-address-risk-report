@@ -108,9 +108,9 @@ const FACTORS = [
           insurance:{level:'Low',why:"Minor unless an active well is adjacent."}}},
 
  {n:15, cat:"Superfund & Brownfield", name:"Superfund (NPL) Sites",
-  map:"https://www.epa.gov/superfund/search-superfund-sites-where-you-live#map", recenter:'search', live:null, basemap:'gray',
+  map:"https://epa.maps.arcgis.com/apps/webappviewer/index.html?id=33cebcdfdd1b4c3a8b51d416956c41f1&find={ADDR}", recenter:'addr', live:'epa', basemap:'gray',
   alt:"https://epa.maps.arcgis.com/apps/webappviewer/index.html?id=33cebcdfdd1b4c3a8b51d416956c41f1&find={ADDR}",
-  detail:"EPA National Priorities List contamination sites within range.",
+  detail:"Live EPA National Priorities List boundary check within 1, 5, and 10 miles of the address.",
   impact:{health:{level:'High',why:"Serious exposure risk if a site is nearby."},
           property:{level:'High',why:"Adjacent contamination sharply cuts value."},
           insurance:{level:'NA',why:"Not a standard property-insurance factor."}}},

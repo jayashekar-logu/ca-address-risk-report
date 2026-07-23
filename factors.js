@@ -24,8 +24,8 @@ const FACTORS = [
           insurance:{level:'NA',why:"Not used in insurance pricing."}}},
 
  {n:3, cat:"Crime", name:"Crime & Public Safety",
-  map:"https://www.crimemapping.com/", recenter:'search', live:null, basemap:'street', alt:"https://communitycrimemap.com/?address={ADDR}",
-  detail:"Recent reported violent and property incidents around the address versus city/national norms.",
+  map:"https://www.crimemapping.com/map", recenter:'search', live:'osm', basemap:'street', alt:"https://communitycrimemap.com/?address={ADDR}",
+  detail:"Live public-safety access proxy near the address plus a CrimeMapping reported-incident map where local agencies participate.",
   impact:{health:{level:'Low',why:"Higher crime raises personal-safety and stress risk."},
           property:{level:'Moderate',why:"Crime levels strongly influence buyer demand and value."},
           insurance:{level:'Low',why:"Theft/vandalism rates modestly affect premiums."}}},

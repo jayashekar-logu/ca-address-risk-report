@@ -444,3 +444,9 @@ tr.flash{animation:rowflash 1.6s ease-out}
 .topriskgrid{display:grid;grid-template-columns:1fr;gap:16px}
 @media(min-width:1080px){.topriskgrid{grid-template-columns:1fr 1fr}}
 .driver.none{color:var(--muted);cursor:default;border-style:dashed;background:#fafbfd}
+
+
+.crime-safety-marker{background:transparent;border:0}
+.crime-safety-marker span{display:grid;place-items:center;width:28px;height:28px;border-radius:999px;color:#fff;font-weight:900;font-size:13px;border:3px solid #fff;box-shadow:0 4px 12px rgba(15,23,42,.25)}
+.crime-dot{display:inline-block;width:14px;height:14px;border-radius:999px;margin-right:7px;vertical-align:-1px}
+.crime-dot.police{background:#2563eb}.crime-dot.fire{background:#dc2626}.crime-dot.hospital{background:#16a34a}.crime-dot.ambulance{background:#7c3aed}

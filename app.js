@@ -578,6 +578,93 @@ async function schoolAccess(st){
   return null;
 }
 
+function crimeSafetyQuery(lat, lon){
+  return `[out:json][timeout:20];(
+    nwr(around:4828,${lat},${lon})[amenity=police];
+    nwr(around:4828,${lat},${lon})[amenity=fire_station];
+    nwr(around:4828,${lat},${lon})[amenity=hospital];
+    nwr(around:4828,${lat},${lon})[emergency=ambulance_station];
+  );out center tags qt 400;`;
+}
+
+function crimeFacilityType(tags){
+  if(!tags) return null;
+  if(tags.amenity === 'police') return 'police';
+  if(tags.amenity === 'fire_station') return 'fire';
+  if(tags.amenity === 'hospital') return 'hospital';
+  if(tags.emergency === 'ambulance_station') return 'ambulance';
+  return null;
+}
+
+function crimeFacilityLabel(type){
+  return ({police:'Police', fire:'Fire station', hospital:'Hospital', ambulance:'Ambulance station'}[type]) || 'Public safety';
+}
+
+function crimeSafetyFacilities(st, elements){
+  const seen = new Set();
+  const facilities = [];
+  (elements || []).forEach(e => {
+    const p = schoolElementPoint(e);
+    if(!p) return;
+    const tags = e.tags || {};
+    const type = crimeFacilityType(tags);
+    if(!type) return;
+    const name = tags.name || tags.operator || crimeFacilityLabel(type);
+    const key = `${e.type || 'n'}-${e.id || name}-${type}`;
+    if(seen.has(key)) return;
+    seen.add(key);
+    facilities.push({type, name, lat:p.lat, lon:p.lon, dist:distanceMiles(st.lat, st.lon, p.lat, p.lon)});
+  });
+  return facilities.sort((a,b)=>a.dist-b.dist);
+}
+
+function crimeSafetyResult(st, elements){
+  const facilities = crimeSafetyFacilities(st, elements);
+  const counts = facilities.reduce((acc, f) => { acc[f.type] = (acc[f.type] || 0) + 1; return acc; }, {});
+  const police = counts.police || 0;
+  const fire = counts.fire || 0;
+  const hospital = counts.hospital || 0;
+  const ambulance = counts.ambulance || 0;
+  const nearestPolice = facilities.find(f => f.type === 'police');
+  const nearestText = nearestPolice
+    ? `${nearestPolice.name} (${nearestPolice.dist.toFixed(nearestPolice.dist < 1 ? 2 : 1)} miles)`
+    : 'no mapped police station within 3 miles';
+  const desc = `Live safety-access proxy from OpenStreetMap: ${police} police, ${fire} fire, ${hospital} hospital, ${ambulance} ambulance station(s) within 3 miles; nearest police: ${nearestText}. Open CrimeMapping for participating-agency incident maps.`;
+  if(police >= 1 && nearestPolice && nearestPolice.dist <= 2){
+    return {label:'Low Risk',score:3,desc,
+      impacts:{health:IMP('Low','Mapped public-safety access is nearby; verify reported incidents in CrimeMapping or local police data.'),property:IMP('Low','Nearby public-safety services support location confidence, but incident rates still need review.'),insurance:IMP('Low','Safety-service access is context only; insurers use broader claims and crime data.')}};
+  }
+  if(police >= 1 || fire + hospital + ambulance >= 2){
+    return {label:'Moderate Risk',score:5,desc,
+      impacts:{health:IMP('Low','Some public-safety or emergency access is mapped nearby; verify reported incidents separately.'),property:IMP('Moderate','Public-safety access is mixed; review reported incidents before relying on this score.'),insurance:IMP('Low','Context only; insurance impact depends on broader claims and crime data.')}};
+  }
+  return {label:'High Risk',score:8,desc,
+    impacts:{health:IMP('Moderate','No nearby mapped public-safety facility was found in this proxy check.'),property:IMP('Moderate','Sparse mapped safety access may raise due-diligence questions; verify with local agencies.'),insurance:IMP('Low','Context only; insurance impact depends on broader claims and crime data.')}};
+}
+
+async function fetchCrimeSafetyElements(st){
+  const endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter'
+  ];
+  const data = crimeSafetyQuery(st.lat, st.lon);
+  for(const endpoint of endpoints){
+    try{
+      const res = await fetchWithAbort(endpoint, {method:'POST', body:new URLSearchParams({data})}, 14000);
+      if(!res.ok) continue;
+      const j = await res.json();
+      return j.elements || [];
+    }catch(e){}
+  }
+  return null;
+}
+
+async function crimeSafety(st){
+  const elements = await fetchCrimeSafetyElements(st);
+  if(!elements) return null;
+  return crimeSafetyResult(st, elements);
+}
+
 async function localEnvironment(lat, lon){
   const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
     + `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code`
@@ -715,13 +802,15 @@ function renderSummaryTable(st, liveResults){
     const im=effImpact(f,live);
     const mapUrl=fill(f.map, st);
     const detailBtn = `<button class="detail-arrow" type="button" data-detail="${f.n}" aria-label="Open details for ${f.name}">➜</button>`;
-    const mapAction = f.n === 5
-      ? `<button class="rk-link map-open map-embed-open" type="button" data-fault-map="5">Open map</button>`
-      : f.n === 15
-        ? `<button class="rk-link map-open npl-map-open" type="button" data-npl-map="15">Open map</button>`
-        : f.n === 46
-          ? `<button class="rk-link map-open tsunami-map-open" type="button" data-tsunami-map="46">Open map</button>`
-          : `<a class="rk-link map-open" href="${mapUrl}" target="_blank" rel="noopener">Open map</a>`;
+    const mapAction = f.n === 3
+      ? `<button class="rk-link map-open crime-map-open" type="button" data-crime-map="3">Open map</button>`
+      : f.n === 5
+        ? `<button class="rk-link map-open map-embed-open" type="button" data-fault-map="5">Open map</button>`
+        : f.n === 15
+          ? `<button class="rk-link map-open npl-map-open" type="button" data-npl-map="15">Open map</button>`
+          : f.n === 46
+            ? `<button class="rk-link map-open tsunami-map-open" type="button" data-tsunami-map="46">Open map</button>`
+            : `<a class="rk-link map-open" href="${mapUrl}" target="_blank" rel="noopener">Open map</a>`;
     const links = `<span class="link-actions">${mapAction}${detailBtn}</span>`;
     const rowRisk = live ? live.score
       : Math.max(0, ...['health','property','insurance'].map(k=>LVLNUM[im[k].level] ?? 0));
@@ -1084,6 +1173,7 @@ function openNplMapModal(){
 }
 
 let tsunamiMap = null;
+let crimeMap = null;
 function initTsunamiMap(){
   const el = $('#tsunamiMap');
   if(!el || !STATE) return;
@@ -1124,6 +1214,75 @@ function openTsunamiMapModal(){
   if(foot) foot.textContent = 'Click outside, press Escape, or use the close button to close.';
   $('#xmodal').classList.remove('hidden');
   setTimeout(initTsunamiMap, 80);
+}
+
+
+function crimeMarkerIcon(type){
+  const color = ({police:'#2563eb', fire:'#dc2626', hospital:'#16a34a', ambulance:'#7c3aed'}[type]) || '#64748b';
+  const label = ({police:'P', fire:'F', hospital:'H', ambulance:'A'}[type]) || 'S';
+  return L.divIcon({
+    className:'crime-safety-marker',
+    html:`<span style="background:${color}">${label}</span>`,
+    iconSize:[28,28],
+    iconAnchor:[14,14]
+  });
+}
+
+function initCrimeMap(){
+  const el = $('#crimeSafetyMap');
+  if(!el || !STATE) return;
+  if(crimeMap){ try{ crimeMap.remove(); }catch(e){} crimeMap = null; }
+  crimeMap = L.map(el, {scrollWheelZoom:true}).setView([STATE.lat, STATE.lon], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap · CrimeMapping link'}).addTo(crimeMap);
+  L.marker([STATE.lat, STATE.lon]).addTo(crimeMap).bindPopup(STATE.display || 'Analyzed address').openPopup();
+  L.circle([STATE.lat, STATE.lon], {radius:4828, color:'#2563eb', weight:2, opacity:.65, fillColor:'#3b82f6', fillOpacity:.08}).addTo(crimeMap);
+  L.control.scale({imperial:true}).addTo(crimeMap);
+  const status = $('#crimeMapStatus');
+  if(status) status.textContent = 'Loading nearby public-safety facilities...';
+  fetchCrimeSafetyElements(STATE).then(elements => {
+    if(!elements){
+      if(status) status.textContent = 'Live safety facilities could not load. Use CrimeMapping for reported incident maps where available.';
+      return;
+    }
+    const facilities = crimeSafetyFacilities(STATE, elements);
+    facilities.forEach(f => {
+      L.marker([f.lat, f.lon], {icon:crimeMarkerIcon(f.type)})
+        .addTo(crimeMap)
+        .bindPopup(`<b>${esc(f.name)}</b><br><span>${esc(crimeFacilityLabel(f.type))}</span><br><span>${f.dist.toFixed(f.dist < 1 ? 2 : 1)} miles away</span>`);
+    });
+    if(status) status.textContent = facilities.length
+      ? `${facilities.length} mapped public-safety facility marker(s) loaded within 3 miles. This is a safety-access proxy, not an official incident crime rate.`
+      : 'No mapped public-safety facilities found within 3 miles. Use CrimeMapping and local police data for incident review.';
+    setTimeout(()=>crimeMap.invalidateSize(), 80);
+  }).catch(err => {
+    if(status) status.textContent = `Safety map could not load: ${err.message || err}`;
+  });
+}
+
+function openCrimeMapModal(){
+  if(!STATE) return;
+  $('#xmodalTitle').textContent = 'Crime & Public Safety Map';
+  $('#xmodalBody').innerHTML = `<div class="detail-modal fault-map-modal">
+    <div class="detail-section no-top">
+      <div class="detail-section-title">CrimeMapping + local safety access</div>
+      <div class="detail-desc">CrimeMapping shows reported incidents where local agencies participate. The local map below is centered on ${esc(STATE.display || 'the analyzed address')} and shows nearby public-safety facilities from OpenStreetMap.</div>
+      <div class="fault-map-toolbar">
+        <span><i class="crime-dot police"></i> Police</span>
+        <span><i class="crime-dot fire"></i> Fire</span>
+        <span><i class="crime-dot hospital"></i> Hospital</span>
+        <span><i class="crime-dot ambulance"></i> Ambulance</span>
+      </div>
+      <div id="crimeSafetyMap" class="fault-line-map"></div>
+      <div id="crimeMapStatus" class="fault-map-status">Preparing safety map...</div>
+      <div class="detail-actions">
+        <a class="btn primary detail-map" href="https://www.crimemapping.com/map" target="_blank" rel="noopener">Open CrimeMapping ↗</a>
+      </div>
+    </div>
+  </div>`;
+  const foot = $('#xmodalFoot');
+  if(foot) foot.textContent = 'CrimeMapping coverage depends on participating law-enforcement agencies. Informational screening only.';
+  $('#xmodal').classList.remove('hidden');
+  setTimeout(initCrimeMap, 80);
 }
 
 function impactBlock(label, item){
@@ -1228,6 +1387,13 @@ function wireSummaryRows(){
       openFactorModal(+btn.dataset.detail);
     });
   });
+  document.querySelectorAll('#summaryTable .crime-map-open').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      openCrimeMapModal();
+    });
+  });
   document.querySelectorAll('#summaryTable .map-embed-open').forEach(btn=>{
     btn.addEventListener('click', e=>{
       e.preventDefault();
@@ -1255,7 +1421,9 @@ function closeFactorModal(){
   const modal = $('#xmodal');
   if(modal) modal.classList.add('hidden');
   if(faultMap){ try{ faultMap.remove(); }catch(e){} faultMap = null; }
+  if(nplMap){ try{ nplMap.remove(); }catch(e){} nplMap = null; }
   if(tsunamiMap){ try{ tsunamiMap.remove(); }catch(e){} tsunamiMap = null; }
+  if(crimeMap){ try{ crimeMap.remove(); }catch(e){} crimeMap = null; }
   SELECTED_FACTOR = null;
   document.querySelectorAll('#summaryTable tbody tr.selected').forEach(row=>{
     row.classList.remove('selected');
@@ -1733,9 +1901,10 @@ async function analyze(){
 
   // live lookups in parallel (hazards + livability)
   const safe = (p, label) => p.catch(e => { console.warn(`${label} lookup failed`, e); return null; });
-  const [census, school, flood, liq, lands, fault, fhsz, npl, tsunami, amen, env] = await Promise.all([
+  const [census, school, crime, flood, liq, lands, fault, fhsz, npl, tsunami, amen, env] = await Promise.all([
     safe(withTimeout(censusByZip(st.zip), 9000, 'Census'), 'Census'),
     safe(withTimeout(schoolAccess(st), 18000, 'School access'), 'School access'),
+    safe(withTimeout(crimeSafety(st), 18000, 'Crime safety'), 'Crime safety'),
     safe(withTimeout(femaFloodZone(st.lat, st.lon), 9000, 'FEMA flood'), 'FEMA flood'),
     safe(withTimeout(cgsLiquefaction(st.lat, st.lon), 9000, 'CGS liquefaction'), 'CGS liquefaction'),
     safe(withTimeout(cgsLandslide(st.lat, st.lon), 9000, 'CGS landslide'), 'CGS landslide'),
@@ -1750,6 +1919,7 @@ async function analyze(){
   setPageLoading(true, 'Rendering the final report...');
   renderProfile(census, st);
   if(school){ liveResults[2]=school; }
+  if(crime){ liveResults[3]=crime; }
   if(flood){ liveResults[8]=flood; }
   if(liq){ liveResults[6]=liq; }
   if(lands){ liveResults[7]=lands; }

@@ -808,11 +808,13 @@ function renderSummaryTable(st, liveResults){
         ? `<button class="rk-link map-open map-embed-open" type="button" data-fault-map="5">Open map</button>`
         : f.n === 6
           ? `<button class="rk-link map-open liquefaction-map-open" type="button" data-liquefaction-map="6">Open map</button>`
-          : f.n === 15
-            ? `<button class="rk-link map-open npl-map-open" type="button" data-npl-map="15">Open map</button>`
-            : f.n === 46
-              ? `<button class="rk-link map-open tsunami-map-open" type="button" data-tsunami-map="46">Open map</button>`
-              : `<a class="rk-link map-open" href="${mapUrl}" target="_blank" rel="noopener">Open map</a>`;
+          : f.n === 7
+            ? `<button class="rk-link map-open landslide-map-open" type="button" data-landslide-map="7">Open map</button>`
+            : f.n === 15
+              ? `<button class="rk-link map-open npl-map-open" type="button" data-npl-map="15">Open map</button>`
+              : f.n === 46
+                ? `<button class="rk-link map-open tsunami-map-open" type="button" data-tsunami-map="46">Open map</button>`
+                : `<a class="rk-link map-open" href="${mapUrl}" target="_blank" rel="noopener">Open map</a>`;
     const links = `<span class="link-actions">${mapAction}${detailBtn}</span>`;
     const rowRisk = live ? live.score
       : Math.max(0, ...['health','property','insurance'].map(k=>LVLNUM[im[k].level] ?? 0));
@@ -1314,6 +1316,25 @@ function openLiquefactionMapModal(){
   $('#xmodal').classList.remove('hidden');
 }
 
+function openLandslideMapModal(){
+  if(!STATE) return;
+  const center = `${Number(STATE.lon).toFixed(6)},${Number(STATE.lat).toFixed(6)}`;
+  $('#xmodalTitle').textContent = 'Landslide Zones Map';
+  $('#xmodalBody').innerHTML = `<div class="detail-modal fault-map-modal">
+    <div class="detail-section no-top">
+      <div class="detail-section-title">CGS landslide map</div>
+      <div class="detail-desc">ArcGIS landslide hazard map centered on ${esc(STATE.display || 'the analyzed address')}.</div>
+      <arcgis-embedded-map class="arcgis-factor-map" style="height:600px;width:100%;" item-id="70ce81b7f17d4cc69425dfe4bc9aad19" theme="light" bookmarks-enabled heading-enabled legend-enabled information-enabled share-enabled basemap-gallery-enabled time-zone-label-enabled center="${center}" scale="72223.819286" portal-url="https://www.arcgis.com"></arcgis-embedded-map>
+      <div class="detail-actions">
+        <a class="btn ghost detail-map" href="${fill((FACTORS.find(f=>f.n===7)||{}).map || '', STATE)}" target="_blank" rel="noopener">Open official landslide map ↗</a>
+      </div>
+    </div>
+  </div>`;
+  const foot = $('#xmodalFoot');
+  if(foot) foot.textContent = 'CGS landslide map. Informational screening only; verify with official CGS sources.';
+  $('#xmodal').classList.remove('hidden');
+}
+
 function openFaultMapModal(){
   if(!STATE) return;
   $('#xmodalTitle').textContent = 'Earthquake Fault Lines Map';
@@ -1428,6 +1449,13 @@ function wireSummaryRows(){
       e.preventDefault();
       e.stopPropagation();
       openLiquefactionMapModal();
+    });
+  });
+  document.querySelectorAll('#summaryTable .landslide-map-open').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      openLandslideMapModal();
     });
   });
   document.querySelectorAll('#summaryTable .npl-map-open').forEach(btn=>{
